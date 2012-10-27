@@ -3,7 +3,7 @@ class BtreeType:
     INDEX = "index"
 
 class PageType:
-    FIRST_PAGE = "page#1"     # has db metadata
+    # FIRST_PAGE = "page#1"     # has db metadata
     TABLE_INTERNAL = "table internal page"
     TABLE_LEAF = "table leaf page"
     INDEX_INTERNAL = "index internal page"
@@ -36,7 +36,7 @@ def get_dbinfo_template():
       "pages":   # Page_no = index + 1
         [
           # {
-          #   "pageType": PageType.FIRST_PAGE,
+          #   "pageType": PageType.INDEX_LEAF,
           #   "cells":
           #     [
           #       {
