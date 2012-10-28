@@ -131,7 +131,7 @@ def _read_btree_header_flag(btree_header_flag):
         btHFormat["tableLeafPageFlag"]: PageType.TABLE_LEAF,
     }
     if not d.has_key(btree_header_flag):
-        return PageType.OTHER
+        return PageType.UNCERTAIN
     return d[btree_header_flag]
 
 
@@ -160,14 +160,12 @@ def _read_cells(dbdata,
                                  CPA_elem_len) ):
         CPA = page_data[CPA_elem_offset : CPA_elem_offset + CPA_elem_len]
         cell_offset = _binstr2int_bigendian(CPA)
-        print("i=%d, n_cells=%d, cell_offset=%d, len(page_data)=%d" % (i, n_cells, cell_offset, len(page_data)))
         assert cell_offset < len(page_data)
 
         if page_type == PageType.TABLE_LEAF:
             cell = _read_table_leaf_cell(cell_offset, dbdata, page_num, page_size)
             cells.append(cell)
         elif page_type == PageType.INDEX_LEAF:
-            exit(1)
             cell = _read_index_leaf_cell(cell_offset, dbdata, page_num, page_size)
             cells.append(cell)
     return cells
@@ -215,8 +213,8 @@ def _read_index_leaf_cell(cell_offset, dbdata, page_num, page_size):
     """
     page_data = _get_page_data(dbdata, page_num, page_size)
 
-    # Table leaf cell format:
-    # [payloadSize (variant), rid (variant), payload, overflowPageNum (4byte)]
+    # Index leaf cell format:
+    # [payloadSize (variant), payload, overflowPageNum (4byte)]
 
     # Payload size
     payload_size_offset = cell_offset
@@ -224,20 +222,12 @@ def _read_index_leaf_cell(cell_offset, dbdata, page_num, page_size):
                                      payload_size_offset + Config.variantFormat["maxLen"]]
     (payload_size_len, payload_size) = _variant2int_bigendian(payload_size_variant)
 
-    # rid
-    rid_offset = payload_size_offset + payload_size_len
-    rid_variant = page_data[rid_offset :
-                            rid_offset + Config.variantFormat["maxLen"]]
-    (rid_len, rid) = _variant2int_bigendian(rid_variant)
-
     return {
         "offset": cell_offset,
         "cellSize": None,  # TODO:
                            # - Get record size and
                            # - Make sure all cells have 4byte overflow page num
         "payloadSize": payload_size,
-        "rid": rid,
-        "record": None,  # TODO: support it
         "livingBtree": "???"  # TODO: support it
     }
 
