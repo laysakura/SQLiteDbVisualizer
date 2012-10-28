@@ -22,3 +22,19 @@
      A large (table|index) leaf page cell can have a link to overflow page.
      Each overflow page header (0x00-0x03) have next-page link.
    - TODO: Other pages
+
+** Trac overflow pages
+   Read a payload in a cell taking overflow pages into account.
+   1. Read a variant from cell[0x00] and get payloadSize
+   2. usableSize = pageSize - reservedSpace
+      where both pageSize and reservedSpace are read from database header.
+   3. maxLocal = usableSize - 35
+   4. minLocal = ((usableSize - 12) * 32/255) - 23
+   5. If payloadSize <= maxLocal, there is no overflow page for the cell
+   6. Else, let localSize = minLocal + ((payloadSize - minLocal) % (usableSize - 4))
+      a. If localSize > maxLocal, minLocal bytes are in this page.
+      b. Else, localSize bytes are in this page.
+   7. Remnant payload can be found on overflow page.
+      Overflow page number is in the last 4 bytes in the cell.
+   8. Each overflow page has a link to the next overflow page in page[0x00-0x03].
+      Page[0x04 - usableSize] is reserved exclusively for the part of the payload.
