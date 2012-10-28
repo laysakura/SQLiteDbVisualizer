@@ -1,0 +1,24 @@
+* SQLite internal terms
+  - cell
+    (Table|Index) (leaf|interior) pages have cells.
+    See http://www.sqlite.org/fileformat2.html - B-tree Cell Format
+
+* Methodology
+** Specify page types
+   Note that Offsets should be +100 for first page.
+   - (Table|Index) leaf page
+     Check if all of these conditions are satisfied.
+     1. Page[0x00] (B-tree header flag) (100 for page#1) is 0x0D (table) or 0x0A (index)
+     2. Page[0x01-0x02] (offset to 1st free block) is lenLeaf to pageSize or 0
+     3. Page[0x03-0x04] (number of cells) is 1 to pageSize/minCellLen
+     4. Page[0x05-0x06] (offset to cell content area) is lenLeaf to pageSize or 0
+   - (Table|Index) interior page
+     Check if all of these conditions are satisfied.
+     1. Page[0x00] (B-tree header flag) is 0x02 (index) or 0x05 (table)
+     2. Page[0x01-0x02] (offset to 1st free block) is lenInterior to pageSize or 0
+     3. Page[0x03-0x04] (number of cells) is 1 to pageSize/minCellLen
+     4. Page[0x05-0x06] (offset to cell content area) is lenInterior to pageSize or 0
+   - Overflow page
+     A large (table|index) leaf page cell can have a link to overflow page.
+     Each overflow page header (0x00-0x03) have next-page link.
+   - TODO: Other pages

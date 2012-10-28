@@ -12,6 +12,8 @@ dbHeaderFormat = {
     "len": 100,
     "pageSizeOffset": 16,
     "pageSizeLen": 2,
+    "reservedSpaceOffset": 20,
+    "reservedSpaceLen": 1,
 }
 
 btreeHeaderFormat = {
@@ -19,27 +21,46 @@ btreeHeaderFormat = {
     "offsetInPage1": dbHeaderFormat["offsetInFile"] + dbHeaderFormat["len"],
     "offsetInPage": 0,
 
-    "len": 12,
+    "leafLen": 8,
+    "interiorLen": 12,  # leafLen + len(right most child page num)
+
     "btreeFlagOffset": 0,
     "btreeFlagLen": 1,
-    "freeSpaceOffset": 1,
-    "freeSpaceLen": 2,
+    "freeBlockOffset": 1,
+    "freeBlockLen": 2,
     "nCellsOffset": 3,
     "nCellsLen": 2,
     "cellContentAreaOffset": 5,
     "cellContentAreaLen": 2,
 
-    "indexInternalPageFlag": 0x02,
+    "indexInteriorPageFlag": 0x02,
     "indexLeafPageFlag": 0x0A,
-    "tableInternalPageFlag": 0x05,
+    "tableInteriorPageFlag": 0x05,
     "tableLeafPageFlag": 0x0D,
 }
 
 cellPointerArrayFormat = {
-    "offsetInPage1": btreeHeaderFormat["offsetInPage1"] + btreeHeaderFormat["len"],
-    "offsetInPage": btreeHeaderFormat["offsetInPage"] + btreeHeaderFormat["len"],
+    "offsetInPage1": btreeHeaderFormat["offsetInPage1"] + btreeHeaderFormat["leafLen"],
+    "offsetInLeafPage": btreeHeaderFormat["offsetInPage"] + btreeHeaderFormat["leafLen"],
+    "offsetInInteriorPage": btreeHeaderFormat["offsetInPage"] + btreeHeaderFormat["interiorLen"],
 
     "elemLen": 2,
+}
+
+cellFormat = {
+    # See "Extracting SQLite records - DFRWS"
+    # Payload is:
+    # - For table btree leaf: content (record)
+    # - For table btree interior: none
+    # - For index btree {leaf,interior}: key
+    "minCellLen": 5,
+
+    "overflowPageNumLen": 4,
+}
+
+overflowPageFormat = {
+    "nextOverflowPageOffset": 0,
+    "nextOverflowPageLen": 4,
 }
 
 variantFormat = {
