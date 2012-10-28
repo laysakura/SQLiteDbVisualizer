@@ -3,9 +3,9 @@
 import __init__
 import Config
 import DbInfoTemplate
-import SQLiteAnalyzer
-import OutputJson
+from SQLiteAnalyzer import SQLiteAnalyzer
 import sys
+import os
 
 def parse_args():
     if len(sys.argv) != 2:
@@ -15,14 +15,9 @@ def parse_args():
 
 def main():
     dbpath = parse_args()
+    analyzer = SQLiteAnalyzer(dbpath)
+    analyzer.dumpJson(outPath=os.path.basename(dbpath) + ".json")
 
-    dbinfo = DbInfoTemplate.get_dbinfo_template()
-
-    SQLiteAnalyzer.read_db(dbinfo, dbpath)
-
-    OutputJson.output_dbinfo_json(dbinfo,
-                                  Config.main["DbInfoJsonPath"],
-                                  Config.main["DbInfoJsonEncoding"])
 
 if __name__ == '__main__':
     main()
