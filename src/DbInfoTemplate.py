@@ -31,7 +31,7 @@ def get_dbinfo_template():
         {
           "pageSize": None, # UINT
           "nPages": None, # UINT
-          "reservedSpace": None, # UINT
+          "usablePageSize": None, # UINT
           "btrees":
             {
                 "JUST FOR PASS ASSERTION": {},
@@ -46,8 +46,8 @@ def get_dbinfo_template():
           #   {
           #     "pageMetadata":
           #       {
-          #         "pageType": PageType.TABLE_LEAF,
-          #         "nCells": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #         "pageType": PageType.TABLE_LEAF,  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #         "nCells": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
           #         "freeBlockOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "cellContentAreaOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "nextOverflowPageNum": None, # UINT  [OVERFLOW]
@@ -57,34 +57,22 @@ def get_dbinfo_template():
           #     "cells":
           #       [
           #         {
-          #           "offset": None, # UINT
-          #           "cellSize": None, # UINT
-          #           "payloadSize": None, # UINT
-          #           "rid": None, # UINT,
-          #           "record": None, # Not supported yet
+          #           "offset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #           "cellSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #           "payloadSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #           "rid": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR]
+          #           "payload":  # TODO: Only size information is supported currently  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
+          #             {
+          #               "headerSize": None, # UINT
+          #               "bodySize": None, # UINT
+          #             },
           #           "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]
           #         },
           #         ...
           #       ]
           #   },
           # 2:
-          #   {
-          #     "pageType": PageType.INDEX_LEAF,
-          #
-          #     # Index (leaf|interior) example:
-          #     "cells":
-          #       [
-          #         {
-          #           "offset": None, # UINT
-          #           "cellSize": None, # UINT
-          #           "leftChildPageNum": None, #UINT  # Only for index interior page
-          #           "payloadSize": None, # UINT
-          #           "key": None, # Not supported yet,
-          #           "livingBtree": "I0"  # One of ret["dbMetadata"]["btrees"]
-          #         },
-          #         ...
-          #       ]
-          #   },
+          #   ...
           # ...
         }
     }

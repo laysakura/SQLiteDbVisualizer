@@ -49,28 +49,32 @@ class SQLiteAnalyzer(object):
         dbMdata = self._dbinfo["dbMetadata"]
         dbMdata["pageSize"] = _binstr2int_bigendian(page_size_binstr)
         dbMdata["nPages"] = len(self._dbdata) / dbMdata["pageSize"]
-        dbMdata["reservedSpace"] = _binstr2int_bigendian(reserved_space_binstr)
+        dbMdata["usablePageSize"] = dbMdata["pageSize"] - _binstr2int_bigendian(reserved_space_binstr)
 
     def _read_db_pages(self):
         # Read pages
         p_cnt = self._dbinfo["dbMetadata"]["nPages"]
-        for page_num in range(1, p_cnt+1):
-            self._read_page(page_num)
+        for pageNum in range(1, p_cnt+1):
+            self._read_page(pageNum)
 
-    def _get_page_data(self, page_num):
+    def _get_page_data(self, pageNum):
         page_size = self._dbinfo["dbMetadata"]["pageSize"]
-        page_offset = page_size * (page_num - 1)
+        page_offset = page_size * (pageNum - 1)
         return self._dbdata[page_offset : page_offset + page_size]
 
-    def _read_page(self, page_num):
-        # Possibly page[page_num] is already read (ex: overflow page)
-        if self._dbinfo["pages"].has_key(page_num):
+    def _read_page(self, pageNum):
+        # Possibly page[pageNum] is already read (ex: overflow page)
+        if self._dbinfo["pages"].has_key(pageNum):
             return
-        self._dbinfo["pages"][page_num] = {}
-        this_page = self._dbinfo["pages"][page_num]
-        this_page["pageMetadata"] = {}
+        self._dbinfo["pages"][pageNum] = {
+            "pageMetadata": {
+                "pageType": PageType.UNCERTAIN,
+            },
+            "cells": []
+        }
+        this_page = self._dbinfo["pages"][pageNum]
 
-        self._read_page_metadata(page_num)
+        self._read_page_metadata(pageNum)
         page_metadata = this_page["pageMetadata"]
         page_type = page_metadata["pageType"]
 
@@ -79,31 +83,31 @@ class SQLiteAnalyzer(object):
                          PageType.TABLE_LEAF, PageType.TABLE_INTERIOR):
             CPAFormat = Config.cellPointerArrayFormat
             cell_pointer_array_offset = None
-            if page_num == 1:
+            if pageNum == 1:
                 cell_pointer_array_offset = CPAFormat["offsetInPage1"]
             elif page_type in (PageType.INDEX_LEAF, PageType.TABLE_LEAF):
                 cell_pointer_array_offset = CPAFormat["offsetInLeafPage"]
             elif page_type in (PageType.INDEX_INTERIOR, PageType.TABLE_INTERIOR):
                 cell_pointer_array_offset = CPAFormat["offsetInInteriorPage"]
 
-            self._read_cells(page_num,
+            self._read_cells(pageNum,
                              page_type,
                              page_metadata["nCells"],
                              cell_pointer_array_offset,
                              page_metadata["cellContentAreaOffset"])
             assert len(this_page["cells"]) == page_metadata["nCells"]
 
-    def _read_cells(self, page_num, page_type, n_cells,
+    def _read_cells(self, pageNum, page_type, n_cells,
                     cell_pointer_array_offset,
                     cell_content_area_offset):
-        this_page = self._dbinfo["pages"][page_num]
+        this_page = self._dbinfo["pages"][pageNum]
         this_page["cells"] = []
 
         # TODO: Visualizing table interior page is also important for performance analysis
         if page_type in (PageType.TABLE_INTERIOR, PageType.INDEX_INTERIOR):
             return
 
-        page_data = self._get_page_data(page_num)
+        page_data = self._get_page_data(pageNum)
         CPAFormat = Config.cellPointerArrayFormat
         CPA_offset = cell_pointer_array_offset
         CPA_elem_len = CPAFormat["elemLen"]
@@ -115,11 +119,11 @@ class SQLiteAnalyzer(object):
             assert cell_offset < len(page_data)
 
             if page_type == PageType.TABLE_LEAF:
-                self._read_table_leaf_cell(page_num, cell_offset)
+                self._read_table_leaf_cell(pageNum, cell_offset)
             elif page_type == PageType.INDEX_LEAF:
-                self._read_index_leaf_cell(page_num, cell_offset)
+                self._read_index_leaf_cell(pageNum, cell_offset)
 
-    def _read_page_metadata(self, page_num):
+    def _read_page_metadata(self, pageNum):
         """
         @note
         Sets pageMetadata (See DbInfoTemplate.py)
@@ -136,11 +140,11 @@ class SQLiteAnalyzer(object):
         @methodology
         See: README.org - Specify page types
         """
-        this_page = self._dbinfo["pages"][page_num]
+        this_page = self._dbinfo["pages"][pageNum]
 
         btHFormat = Config.btreeHeaderFormat
-        page_data = self._get_page_data(page_num)
-        bth_offset = btHFormat["offsetInPage1"] if page_num == 1 else btHFormat["offsetInPage"]
+        page_data = self._get_page_data(pageNum)
+        bth_offset = btHFormat["offsetInPage1"] if pageNum == 1 else btHFormat["offsetInPage"]
         btree_header_data = page_data[bth_offset :
                                       bth_offset + max(btHFormat["leafLen"], btHFormat["interiorLen"])]
         (btree_header_flag,
@@ -171,40 +175,63 @@ class SQLiteAnalyzer(object):
                 "pageType": PageType.UNCERTAIN
             }
 
-    def _read_table_leaf_cell(self, page_num, cell_offset):
-        this_page = self._dbinfo["pages"][page_num]
-        page_data = self._get_page_data(page_num)
+    def _read_table_leaf_cell(self, pageNum, cell_offset):
+        this_page = self._dbinfo["pages"][pageNum]
+        page_data = self._get_page_data(pageNum)
 
         # Table leaf cell format:
         # [payloadSize (variant), rid (variant), payload, overflowPageNum (4byte)]
 
         # Payload size
-        payload_size_offset = cell_offset
-        payload_size_variant = page_data[payload_size_offset :
-                                         payload_size_offset + Config.variantFormat["maxLen"]]
-        (payload_size_len, payload_size) = _variant2int_bigendian(payload_size_variant)
-        # TODO: support overflow page
+        payloadSizeOffset = cell_offset
+        payloadSizeVariant = page_data[payloadSizeOffset :
+                                       payloadSizeOffset + Config.variantFormat["maxLen"]]
+        (payloadSizeLen, payloadSize) = _variant2int_bigendian(payloadSizeVariant)
 
         # rid
-        rid_offset = payload_size_offset + payload_size_len
+        rid_offset = payloadSizeOffset + payloadSizeLen
         rid_variant = page_data[rid_offset :
                                 rid_offset + Config.variantFormat["maxLen"]]
         (rid_len, rid) = _variant2int_bigendian(rid_variant)
 
+        # payload
+        payloadOffset = rid_offset + rid_len
+        (headerSize, bodySize) = self._get_whole_payload_size_for_cell(pageNum, payloadOffset)
+        payloadWholeSize = headerSize + bodySize
+        # localPayloadSize = self._get_local_payload_size_for_cell(payloadSize)
+        localPayloadSize = self._get_local_payload_size_for_cell(payloadWholeSize)
+        assert payloadSize == payloadWholeSize
+
+        # Might-be overflow page head
+        overflowPageNumLen = Config.cellFormat["overflowPageNumLen"]
+        ovflw_pg_head_offset = payloadOffset + localPayloadSize
+        ovflw_pg_head_binstr = page_data[ovflw_pg_head_offset :
+                                         ovflw_pg_head_offset + overflowPageNumLen]
+        ovflw_pg_head = _binstr2int_bigendian(ovflw_pg_head_binstr)
+
+        # Read overflow page if necessary
+        if localPayloadSize < payloadSize:
+            self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
+            pass
+        else:
+            overflowPageNumLen = 0
+
         this_page["cells"].append({
             "offset": cell_offset,
-            "cellSize": None,  # TODO:
-                               # - Get record size and
-                               # - Make sure all cells have 4byte overflow page num
-            "payloadSize": payload_size,
+            "cellSize":
+                payloadSizeLen + rid_len + localPayloadSize + overflowPageNumLen,
+            "payloadSize": payloadSize,
             "rid": rid,
-            "record": None,  # TODO: support it
+            "payload":  # TODO: fully support it
+              {"headerSize": headerSize, "bodySize": bodySize},
             "livingBtree": "???"  # TODO: support it
         })
 
-    def _read_index_leaf_cell(self, page_num, cell_offset):
-        this_page = self._dbinfo["pages"][page_num]
-        page_data = self._get_page_data(page_num)
+    def _read_index_leaf_cell(self, pageNum, cell_offset):
+        assert False
+
+        this_page = self._dbinfo["pages"][pageNum]
+        page_data = self._get_page_data(pageNum)
 
         # Index leaf cell format:
         # [payloadSize (variant), payload, overflowPageNum (4byte)]
@@ -248,8 +275,103 @@ class SQLiteAnalyzer(object):
                      btHFormat["cellContentAreaOffset"] + btHFormat["cellContentAreaLen"]])
         return (btree_header_flag, free_block_offset, n_cells, cell_content_area)
 
-    def _read_overflow_page(self, page_num, rem_len):
-        pass
+    def _get_local_payload_size_for_cell(self, payloadWholeSize):
+        """
+        @note
+        See: README.org - Trac overflow pages
+
+        @return
+        Local payload size for this cell.
+
+        @example
+        payloadLocalSize = self._get_local_payload_size_for_cell(cell_offset, payloadWholeSize)
+        if payloadLocalSize < payloadWholeSize:
+            # This cell has overflow pages
+            self._read_overflow_pages(overflowPageHead, payloadWholeSize - payloadLocalSize)
+        """
+        payloadSize = payloadWholeSize
+        usableSize = self._dbinfo["dbMetadata"]["usablePageSize"]
+        maxLocal = usableSize - 35
+        minLocal = ((usableSize - 12) * 32/255) - 23
+        if payloadSize <= maxLocal:
+            return payloadSize
+        localSize = minLocal + ((payloadSize - minLocal) % (usableSize - 4))
+        sizeInThisPage = minLocal if localSize > maxLocal else localSize
+        return sizeInThisPage
+
+    def _get_whole_payload_size_for_cell(self, pageNum, payloadOffset):
+        """
+        @note
+        See: README.org - Read payloads
+
+        @return
+        (payloadHeaderSize, payloadBodySize)
+        """
+        page_data = self._get_page_data(pageNum)
+        payloadData = page_data[payloadOffset : ]
+
+        payloadFormat = Config.payloadFormat
+        variantMaxLen = Config.variantFormat["maxLen"]
+
+        # Read header size
+        headerSizeVariant = payloadData[payloadFormat["headerSizeOffset"] :
+                                        payloadFormat["headerSizeOffset"] + variantMaxLen]
+        (headerSizeLen, headerSize) = _variant2int_bigendian(headerSizeVariant)
+
+        # Read serial type in header and calculate bodySize
+        bodySize = 0
+        stypeOffset = headerSizeLen
+        while stypeOffset < headerSize:
+            stypeVariant = payloadData[stypeOffset :
+                                       stypeOffset + variantMaxLen]
+            (stypeLen, stype) = _variant2int_bigendian(stypeVariant)
+            bodySize += Config.serialType2ContentSize(stype)
+            stypeOffset += stypeLen
+
+        return headerSize, bodySize
+
+    def _read_overflow_pages(self, pageNum, rem_len):
+        assert 1 <= pageNum <= self._dbinfo["dbMetadata"]["nPages"]
+
+        # Read for the first time
+        if not self._dbinfo["pages"].has_key(pageNum):
+            self._dbinfo["pages"][pageNum] = {
+                "pageMetadata": {
+                    "pageType": PageType.OVERFLOW,
+                    "nCells": 1,
+                },
+                "cells": []
+            }
+        thisPage = self._dbinfo["pages"][pageNum]
+
+        page_data = self._get_page_data(pageNum)
+
+        # Read next overflow page num
+        ovflwPgFormat = Config.overflowPageFormat
+        next_ovflw_pg_binstr = page_data[ovflwPgFormat["nextOverflowPageOffset"] :
+                                         ovflwPgFormat["nextOverflowPageOffset"] + ovflwPgFormat["nextOverflowPageLen"]]
+        next_ovflw_pg = _binstr2int_bigendian(next_ovflw_pg_binstr)
+        assert 0 <= next_ovflw_pg <= self._dbinfo["dbMetadata"]["nPages"]
+        thisPage["pageMetadata"]["nextOverflowPageNum"] = next_ovflw_pg
+
+        cell_size = None
+        cell_area_len = self._dbinfo["dbMetadata"]["usablePageSize"] - ovflwPgFormat["nextOverflowPageLen"]
+
+        # This page is the last overflow page
+        if next_ovflw_pg == ovflwPgFormat["pageNumForFinal"]:
+            assert rem_len <= cell_area_len
+            cell_size = rem_len
+        # Other overflow pages follow
+        else:
+            cell_size = cell_area_len
+            self._read_overflow_pages(next_ovflw_pg, rem_len - cell_size)
+
+        thisPage["cells"].append({
+            "offset": ovflwPgFormat["nextOverflowPageOffset"] + ovflwPgFormat["nextOverflowPageLen"],
+            "cellSize": cell_size,
+            # TODO: parameters to specify what (record|index) (in btree) this overflow page belongs to
+            #   ex: RID, index key, livingBtree
+        })
 
     def _summarize_dbinfo(self):
         # Check the validity of dbinfo first
@@ -266,7 +388,7 @@ class SQLiteAnalyzer(object):
 
 def _btree_header_flag_TO_PageType(btree_header_flag):
     """
-    >>> _btree_header_flag_TO_PageType(0x00) == PageType.OTHER
+    >>> _btree_header_flag_TO_PageType(0x00) == PageType.UNCERTAIN
     True
     >>> _btree_header_flag_TO_PageType(Config.btreeHeaderFormat['tableInteriorPageFlag']) == PageType.TABLE_INTERIOR
     True
@@ -309,26 +431,30 @@ def _variant2int_bigendian(binstr):
     @return
     (VariantLength, effNumber)
 
+    >>> s = chr(int('10000001', 2)) + chr(int('00101001', 2))
+    >>> _variant2int_bigendian(s)
+    (2, 169)
     >>> s = chr(int('10000001', 2)) + chr(int('00000001', 2))
     >>> _variant2int_bigendian(s)
-    (2, 257)
+    (2, 129)
     >>> s = chr(int('10000000', 2)) + chr(int('10000000', 2)) + chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2))
     >>> _variant2int_bigendian(s)
-    (9, 128L)
+    (9, 128)
     """
-    new_binstr = ""
+    s01 = ""
     i = 0
     for i, c in enumerate(binstr):
         byte = ord(c)
         if i == Config.variantFormat["maxLen"] - 1:
-            new_binstr += chr(byte)
+            s01 += "%08s" % (bin(byte)[2:])
         else:
             eff7bit = int("01111111", 2) & byte
-            new_binstr += chr(eff7bit)
+            s01 += "%07s" % (bin(eff7bit)[2:])
             msb = (byte & int("10000000", 2)) >> 7
             if msb == 0:
                 break
-    return (i+1, _binstr2int_bigendian(new_binstr))
+    s01 = s01.replace(' ', '0')
+    return (i+1, int(s01, 2))
 
 
 def _test():

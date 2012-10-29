@@ -38,3 +38,13 @@
       Overflow page number is in the last 4 bytes in the cell.
    8. Each overflow page has a link to the next overflow page in page[0x00-0x03].
       Page[0x04 - usableSize] is reserved exclusively for the part of the payload.
+
+** Read payloads
+   1. Read a variant from offset 0 (payloadHeaderSize).
+      Let the variant size be firstStypeOffset.
+   2. Read variants from firstStypeOffset to payloadHeaderSize.
+      Treat each value as a Serial Type.
+      (See: http://www.sqlite.org/fileformat2.html - Serial Type Codes Of The Record Format)
+   3. Payload values follow the variants.
+      Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
+   4. payloadHeaderSize + sum(valueSize) is the payload size.

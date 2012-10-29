@@ -58,11 +58,39 @@ cellFormat = {
     "overflowPageNumLen": 4,
 }
 
+payloadFormat = {
+    "headerSizeOffset": 0,
+}
+
 overflowPageFormat = {
     "nextOverflowPageOffset": 0,
     "nextOverflowPageLen": 4,
+
+    "pageNumForFinal": 0x00,
 }
 
 variantFormat = {
     "maxLen": 9,
 }
+
+
+def serialType2ContentSize(stype):
+    """
+    @note
+    See: http://www.sqlite.org/fileformat2.html - Serial Type Codes Of The Record Format
+    """
+    assert stype not in (10, 11)
+    if stype in range(0, 4+1):
+        return stype
+    elif stype in (5, 7):
+        return stype + 1
+    elif stype == 6:
+        return 8
+    elif stype in (8, 9):
+        return 0
+    elif stype >= 12 and stype % 2 == 0:
+        return (stype - 12) / 2
+    elif stype >= 13 and stype % 2 == 1:
+        return (stype - 13) / 2
+    else:
+        assert False
