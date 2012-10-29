@@ -1,5 +1,6 @@
 import SvgConfig
 import DbFormatConfig
+from DbInfoTemplate import PageType
 import json
 import pysvg.structure
 import pysvg.builders
@@ -29,8 +30,6 @@ class Json2Svg(object):
         #         strokewidth = 1,
         #         stroke = "black",
         #         fill = "rgb(255, 255, 0)"))
-        # self._svgDoc.addElement(pysvg.text.text("Hello World",
-        #                                         x = 210, y = 110))
 
         self._drawPageList(SvgConfig.pageList["x"],
                            SvgConfig.pageList["y"])
@@ -58,24 +57,30 @@ class Json2Svg(object):
                            pageNum)
 
     def _drawPage(self, x, y, pageNum):
+        pageType = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]["pageType"]
         self._svgDoc.addElement(
-            self._shapeBuilder.createRect(x, y,
-                                          self._pageWidth, self._pageHeight,
-                                          fill=SvgConfig.page["fillColor"]))
+            self._shapeBuilder.createRect(
+                x, y,
+                self._pageWidth, self._pageHeight,
+                fill=SvgConfig.page["fillColor"],
+                strokewidth=SvgConfig.page["strokeWidth"],
+                stroke=SvgConfig.page[pageType + "strokeColor"]))
         self._drawCells(x, y, pageNum)
 
     def _drawCells(self, pageX, pageY, pageNum):
-        cells = self._dbinfo["pages"][str(pageNum)]["cells"]
+        page = self._dbinfo["pages"][str(pageNum)]
+        pageType = page["pageMetadata"]["pageType"]
+        cells = page["cells"]
         for cell in cells:
-            self._drawCell(pageX, pageY, cell)
+            self._drawCell(pageX, pageY, cell, pageType)
 
-    def _drawCell(self, pageX, pageY, cell):
+    def _drawCell(self, pageX, pageY, cell, pageType):
         offset = cell["offset"]
-        size = remSize = cell["cellSize"]
+        remSize = cell["cellSize"]
         x = pageX + offset % self._pageWidth
         y = pageY + (offset / self._pageWidth) * self._cellHeight
         while remSize > 0:
-            widthInRow = self._pageWidth - x
+            widthInRow = min(remSize, self._pageWidth - x)
             self._svgDoc.addElement(
                 self._shapeBuilder.createRect(
                     x, y,
@@ -84,3 +89,18 @@ class Json2Svg(object):
             remSize -= widthInRow
             x = pageX
             y += self._cellHeight
+        self._drawCellInfo(pageX + offset % self._pageWidth,
+                           pageY + (offset / self._pageWidth) * self._cellHeight,
+                           cell, pageType)
+
+    def _drawCellInfo(self, cellX, cellY, cell, pageType):
+        style=pysvg.builders.StyleBuilder()
+        style.setFontSize(self._cellHeight) #no need for the keywords all the time
+        s = ""
+        if pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR) :
+            s = str(cell["rid"])
+        self._svgDoc.addElement(
+            pysvg.text.text(s,
+                            x=cellX + (self._cellHeight/2),
+                            y=cellY + (self._cellHeight/2),
+                            style=style.getStyle()))

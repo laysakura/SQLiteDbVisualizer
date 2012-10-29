@@ -51,6 +51,7 @@ def get_dbinfo_template():
           #         "freeBlockOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "cellContentAreaOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "nextOverflowPageNum": None, # UINT  [OVERFLOW]
+          #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #       }
           #
           #     # Table leaf example:
@@ -66,7 +67,6 @@ def get_dbinfo_template():
           #               "headerSize": None, # UINT
           #               "bodySize": None, # UINT
           #             },
-          #           "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]
           #         },
           #         ...
           #       ]
