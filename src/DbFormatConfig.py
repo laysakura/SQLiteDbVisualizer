@@ -3,8 +3,8 @@ import __init__
 basedir = __init__.basedir
 
 main = {
-    "DbInfoJsonPath": basedir + "/output.json",
-    "DbInfoJsonEncoding": "utf-8",
+    "dbInfoJsonPath": basedir + "/output.json",
+    "dbInfoJsonEncoding": "utf-8",
 }
 
 dbHeaderFormat = {

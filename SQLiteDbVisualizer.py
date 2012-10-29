@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import __init__
-import Config
 import DbInfoTemplate
 from SQLiteAnalyzer import SQLiteAnalyzer
+from Json2Svg import Json2Svg
 import sys
 import os
 
@@ -14,9 +14,13 @@ def parse_args():
     return sys.argv[1]
 
 def main():
-    dbpath = parse_args()
-    analyzer = SQLiteAnalyzer(dbpath)
-    analyzer.dumpJson(outPath=os.path.basename(dbpath) + ".json")
+    dbPath = parse_args()
+    jsonPath = os.path.basename(dbPath) + ".json"
+    svgPath = os.path.basename(dbPath) + ".svg"
+    analyzer = SQLiteAnalyzer(dbPath)
+    analyzer.dumpJson(outPath=jsonPath)
+    json2Svg = Json2Svg(jsonPath=jsonPath, svgPath=svgPath)
+    json2Svg.dumpSvg()
 
 
 if __name__ == '__main__':
