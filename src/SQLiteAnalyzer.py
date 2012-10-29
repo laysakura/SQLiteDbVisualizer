@@ -198,7 +198,6 @@ class SQLiteAnalyzer(object):
         payloadOffset = rid_offset + rid_len
         (headerSize, bodySize) = self._get_whole_payload_size_for_cell(pageNum, payloadOffset)
         payloadWholeSize = headerSize + bodySize
-        # localPayloadSize = self._get_local_payload_size_for_cell(payloadSize)
         localPayloadSize = self._get_local_payload_size_for_cell(payloadWholeSize)
         assert payloadSize == payloadWholeSize
 
@@ -212,7 +211,6 @@ class SQLiteAnalyzer(object):
         # Read overflow page if necessary
         if localPayloadSize < payloadSize:
             self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
-            pass
         else:
             overflowPageNumLen = 0
 
@@ -223,13 +221,11 @@ class SQLiteAnalyzer(object):
             "payloadSize": payloadSize,
             "rid": rid,
             "payload":  # TODO: fully support it
-              {"headerSize": headerSize, "bodySize": bodySize},
+                {"headerSize": headerSize, "bodySize": bodySize},
             "livingBtree": "???"  # TODO: support it
         })
 
     def _read_index_leaf_cell(self, pageNum, cell_offset):
-        assert False
-
         this_page = self._dbinfo["pages"][pageNum]
         page_data = self._get_page_data(pageNum)
 
@@ -237,17 +233,38 @@ class SQLiteAnalyzer(object):
         # [payloadSize (variant), payload, overflowPageNum (4byte)]
 
         # Payload size
-        payload_size_offset = cell_offset
-        payload_size_variant = page_data[payload_size_offset :
-                                         payload_size_offset + Config.variantFormat["maxLen"]]
-        (payload_size_len, payload_size) = _variant2int_bigendian(payload_size_variant)
+        payloadSizeOffset = cell_offset
+        payloadSizeVariant = page_data[payloadSizeOffset :
+                                       payloadSizeOffset + Config.variantFormat["maxLen"]]
+        (payloadSizeLen, payloadSize) = _variant2int_bigendian(payloadSizeVariant)
+
+        # payload
+        payloadOffset = payloadSizeOffset + payloadSizeLen
+        (headerSize, bodySize) = self._get_whole_payload_size_for_cell(pageNum, payloadOffset)
+        payloadWholeSize = headerSize + bodySize
+        localPayloadSize = self._get_local_payload_size_for_cell(payloadWholeSize)
+        assert payloadSize == payloadWholeSize
+
+        # Might-be overflow page head
+        overflowPageNumLen = Config.cellFormat["overflowPageNumLen"]
+        ovflw_pg_head_offset = payloadOffset + localPayloadSize
+        ovflw_pg_head_binstr = page_data[ovflw_pg_head_offset :
+                                         ovflw_pg_head_offset + overflowPageNumLen]
+        ovflw_pg_head = _binstr2int_bigendian(ovflw_pg_head_binstr)
+
+        # Read overflow page if necessary
+        if localPayloadSize < payloadSize:
+            self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
+        else:
+            overflowPageNumLen = 0
 
         this_page["cells"].append({
             "offset": cell_offset,
-            "cellSize": None,  # TODO:
-                               # - Get record size and
-                               # - Make sure all cells have 4byte overflow page num
-            "payloadSize": payload_size,
+            "cellSize":
+                payloadSizeLen + localPayloadSize + overflowPageNumLen,
+            "payloadSize": payloadSize,
+            "payload":  # TODO: fully support it
+                {"headerSize": headerSize, "bodySize": bodySize},
             "livingBtree": "???"  # TODO: support it
         })
 
