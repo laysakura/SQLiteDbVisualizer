@@ -27,7 +27,7 @@ btreeList = {  # Top element
     "legendHeight": 6,
     "legendNCol": 2,
 
-    "legendDiffY": 4,
+    "legendTopMargin": 4,
     "legendStrokeWidth": "1",
     "legendStrokeColor": "#000000",
 }
@@ -50,6 +50,11 @@ btreeColorPalette = [
 pageList = {  # Top element
     "x": 0,
     "yPadFromBtreeList": 0,
+
+    "pageNumWidth": 36,
+    "pageNumFontSize": 4,
+    "pageNumLeftMargin": 4,
+    "pageNumTopMargin": 4,
 }
 
 cell = {

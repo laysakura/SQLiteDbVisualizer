@@ -51,6 +51,7 @@ class Json2Svg(object):
 
         # PageList
         self._pageWidth = SvgConfig.page["width"]
+        self._pageListWidth = SvgConfig.page["width"] + SvgConfig.pageList["pageNumWidth"]
         self._cellHeight = SvgConfig.cell["height"]
         self._nRowsInPage = self._dbinfo["dbMetadata"]["pageSize"] / self._pageWidth
         self._pageHeight = self._cellHeight * self._nRowsInPage
@@ -60,7 +61,7 @@ class Json2Svg(object):
         # Background
         self._backgroundWidth = (
             max(SvgConfig.btreeList["x"], SvgConfig.pageList["x"]) +  # Max offset
-            max(self._btreeListWidth, SvgConfig.page["width"])    # Max width
+            max(self._btreeListWidth, self._pageListWidth)    # Max width
         )
         self._backgroundHeight = (
             SvgConfig.btreeList["y"] +  # Y of top element
@@ -83,8 +84,14 @@ class Json2Svg(object):
 
     def _drawPageList(self, x, y):
         for pageNum in range(1, self._dbinfo["dbMetadata"]["nPages"] + 1):
-            self._drawPage(x, y + (pageNum - 1) * self._pageHeight,
-                           pageNum)
+            self._drawPage(
+                x,
+                y + (pageNum - 1) * self._pageHeight,
+                pageNum)
+            self._drawPageNum(
+                x + SvgConfig.page["width"],
+                y + (pageNum - 1) * self._pageHeight,
+                pageNum)
 
     def _drawBtreeList(self, x, y):
         btreeList = self._dbinfo["dbMetadata"]["btrees"]
@@ -110,7 +117,7 @@ class Json2Svg(object):
         self._svgDoc.addElement(
             pysvg.text.text(btree["name"],
                             x=x + SvgConfig.btreeList["legendHeight"],
-                            y=y + SvgConfig.btreeList["legendDiffY"],
+                            y=y + SvgConfig.btreeList["legendTopMargin"],
                             style=style.getStyle()))
 
     def _drawPage(self, x, y, pageNum):
@@ -124,13 +131,27 @@ class Json2Svg(object):
                 stroke=SvgConfig.page[pageType + "strokeColor"]))
         self._drawCells(x, y, pageNum)
 
+    def _drawPageNum(self, x, y, pageNum):
+        style = pysvg.builders.StyleBuilder()
+        style.setFontSize(SvgConfig.pageList["pageNumFontSize"])
+        self._svgDoc.addElement(
+            pysvg.text.text(str(pageNum),
+                            x=x + SvgConfig.pageList["pageNumLeftMargin"],
+                            y=y + SvgConfig.pageList["pageNumTopMargin"],
+                            style=style.getStyle()))
+
     def _drawCells(self, pageX, pageY, pageNum):
         page = self._dbinfo["pages"][str(pageNum)]
         pageType = page["pageMetadata"]["pageType"]
+        # TODO: Give livingBtree for overflow page
+        cellColor = "#cccccc"
+        if pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR,
+                        PageType.INDEX_LEAF, PageType.INDEX_INTERIOR):
+            cellColor = self._btreeColorDict[page["pageMetadata"]["livingBtree"]]
         cells = page["cells"]
         for cell in cells:
             self._drawCell(pageX, pageY,
-                           self._btreeColorDict[page["pageMetadata"]["livingBtree"]],
+                           cellColor,
                            cell, pageType)
 
     def _drawCell(self, pageX, pageY, fillColor, cell, pageType):
