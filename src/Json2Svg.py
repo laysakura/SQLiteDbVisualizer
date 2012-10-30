@@ -10,18 +10,22 @@ import pysvg.text
 class Json2Svg(object):
     def initByJsonStr(self, jsonStr, svgPath,
                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
-                      filterBtrees=[]):
+                      filterBtrees=[],
+                      displayRid=False):
         self._dbinfo = json.loads(jsonStr, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
+        self._displayRid = displayRid
 
     def initByJsonPath(self, jsonPath, svgPath,
                        jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
-                       filterBtrees=[]):
+                       filterBtrees=[],
+                       displayRid=False):
         with open(jsonPath) as f_json:
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
+        self._displayRid = displayRid
 
     def dumpSvg(self):
         self._preDraw()
@@ -195,13 +199,17 @@ class Json2Svg(object):
                            cell, pageType)
 
     def _drawCellInfo(self, cellX, cellY, cell, pageType):
+        if self._displayRid:
+            self._drawRid(cellX, cellY, cell["rid"], pageType)
+
+    def _drawRid(self, x, y, rid, pageType):
         style = pysvg.builders.StyleBuilder()
         style.setFontSize(self._cellHeight)
         s = ""
         if pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR) :
-            s = str(cell["rid"])
+            s = str(rid)
         self._svgDoc.addElement(
             pysvg.text.text(s,
-                            x=cellX + (self._cellHeight/2),
-                            y=cellY + (self._cellHeight/2),
+                            x=x + (self._cellHeight/2),
+                            y=y + (self._cellHeight/2),
                             style=style.getStyle()))

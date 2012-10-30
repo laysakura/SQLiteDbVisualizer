@@ -63,6 +63,11 @@ def create_parser_svg(subparsers):
         default=[],
         nargs='+',
         help="List of B-tree (table or index) name to focus. Only pages in this b-tree are displayed.")
+    parser_svg.add_argument(
+        "--displayRid",
+        default=False,
+        action='store_true',
+        help="Whether to display RID for each table page")
 
 
 def output_dbinfo_json(args):
@@ -78,10 +83,13 @@ def output_dbinfo_svg(args):
     if args.jsonPath is None:
         jsonStr = analyzer.getJson()
         json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath,
-                               filterBtrees=args.filterBtrees)
+                               filterBtrees=args.filterBtrees,
+                               displayRid=args.displayRid)
     else:
         analyzer.dumpJson(outPath=args.jsonPath)
-        json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath)
+        json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath,
+                                filterBtrees=args.filterBtrees,
+                                displayRid=args.displayRid)
     json2Svg.dumpSvg()
 
 
