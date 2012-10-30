@@ -58,6 +58,11 @@ def create_parser_svg(subparsers):
         "--jsonPath",
         default=None,
         help="Path to intermediate DB info JSON")
+    parser_svg.add_argument(
+        "--filterBtrees",
+        default=[],
+        nargs='+',
+        help="List of B-tree (table or index) name to focus. Only pages in this b-tree are displayed.")
 
 
 def output_dbinfo_json(args):
@@ -72,7 +77,8 @@ def output_dbinfo_svg(args):
     json2Svg = Json2Svg()
     if args.jsonPath is None:
         jsonStr = analyzer.getJson()
-        json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath)
+        json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath,
+                               filterBtrees=args.filterBtrees)
     else:
         analyzer.dumpJson(outPath=args.jsonPath)
         json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath)
@@ -81,13 +87,6 @@ def output_dbinfo_svg(args):
 
 def main():
     parse_subcommands()
-    # dbPath = parse_args()
-    # jsonPath = os.path.basename(dbPath) + ".json"
-    # svgPath = os.path.basename(dbPath) + ".svg"
-    # analyzer = SQLiteAnalyzer(dbPath)
-    # analyzer.dumpJson(outPath=jsonPath)
-    # json2Svg = Json2Svg(jsonPath=jsonPath, svgPath=svgPath)
-    # json2Svg.dumpSvg()
 
 
 if __name__ == '__main__':

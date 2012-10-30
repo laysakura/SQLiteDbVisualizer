@@ -9,15 +9,19 @@ import pysvg.text
 
 class Json2Svg(object):
     def initByJsonStr(self, jsonStr, svgPath,
-                      jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
+                      jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
+                      filterBtrees=[]):
         self._dbinfo = json.loads(jsonStr, jsonEncoding)
         self._svgPath = svgPath
+        self._filterBtrees = filterBtrees
 
     def initByJsonPath(self, jsonPath, svgPath,
-                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
+                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
+                       filterBtrees=[]):
         with open(jsonPath) as f_json:
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath
+        self._filterBtrees = filterBtrees
 
     def dumpSvg(self):
         self._preDraw()
@@ -88,15 +92,27 @@ class Json2Svg(object):
                 fill=SvgConfig.background["fillColor"]))
 
     def _drawPageList(self, x, y):
+        nDrawnPage = 0
         for pageNum in range(1, self._dbinfo["dbMetadata"]["nPages"] + 1):
-            self._drawPage(
-                x,
-                y + (pageNum - 1) * self._pageHeight,
-                pageNum)
-            self._drawPageNum(
-                x + SvgConfig.page["width"],
-                y + (pageNum - 1) * self._pageHeight,
-                pageNum)
+            pageMetadata = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]
+
+            # Filter pages to draw
+            if (self._filterBtrees == [] or
+                (self._filterBtrees != [] and
+                 pageMetadata["pageType"] in (
+                        PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
+                        PageType.TABLE_LEAF, PageType.TABLE_LEAF) and
+                 pageMetadata["livingBtree"] in self._filterBtrees)):
+
+                self._drawPage(
+                    x,
+                    y + nDrawnPage * self._pageHeight,
+                    pageNum)
+                self._drawPageNum(
+                    x + SvgConfig.page["width"],
+                    y + nDrawnPage * self._pageHeight,
+                    pageNum)
+                nDrawnPage += 1
 
     def _drawBtreeList(self, x, y):
         btreeList = self._dbinfo["dbMetadata"]["btrees"]
