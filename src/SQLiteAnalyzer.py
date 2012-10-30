@@ -1,8 +1,7 @@
 import __init__
 import DbFormatConfig
 from DbInfoTemplate import PageType, BtreeType, get_dbinfo_template
-import OutputJson
-from array import array
+import json
 
 
 class SQLiteAnalyzer(object):
@@ -19,8 +18,16 @@ class SQLiteAnalyzer(object):
 
     def dumpJson(self,
                  outPath, encoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
-        OutputJson.output_dbinfo_json(self._dbinfo,
-                                      outPath, encoding)
+        with open(outPath, "w") as f_json:
+            json_str = json.dumps(self._dbinfo, indent=2)
+            f_json.write(json_str.encode(encoding))
+
+    def getJson(self):
+        return json.dumps(self._dbinfo, indent=2)
+
+    def printJson(self):
+        json_str = json.dumps(self._dbinfo, indent=2)
+        print(json_str)
 
     def _read_db(self):
         assert len(self._dbdata) > 0

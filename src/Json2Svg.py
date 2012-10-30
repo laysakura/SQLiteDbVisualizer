@@ -8,8 +8,13 @@ import pysvg.text
 
 
 class Json2Svg(object):
-    def __init__(self, jsonPath, svgPath,
-                 jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
+    def initByJsonStr(self, jsonStr, svgPath,
+                      jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
+        self._dbinfo = json.loads(jsonStr, jsonEncoding)
+        self._svgPath = svgPath
+
+    def initByJsonPath(self, jsonPath, svgPath,
+                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"]):
         with open(jsonPath) as f_json:
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath

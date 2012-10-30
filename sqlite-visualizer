@@ -7,20 +7,87 @@ from Json2Svg import Json2Svg
 import sys
 import os
 
-def parse_args():
-    if len(sys.argv) != 2:
-        print("ARGS: dbpath")
-        exit(1)
-    return sys.argv[1]
+def parse_subcommands():
+    import argparse
+
+    # create the top-level parser
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+
+    # create subcommand parsers
+    create_parser_json(subparsers)
+    create_parser_svg(subparsers)
+
+    # parse the args and call whatever function was selected
+    args = parser.parse_args(sys.argv[1:])
+    args.func(args)
+
+def create_parser_json(subparsers):
+    parser_json = subparsers.add_parser(
+        "json",
+        description=(
+"""Analyze SQLite DB and output the result in JSON format."""
+),
+        )
+    parser_json.set_defaults(func=output_dbinfo_json)
+
+    parser_json.add_argument(
+        "dbPath",
+        help="SQLite DB path")
+    parser_json.add_argument(
+        "--jsonPath",
+        default=None,
+        help="Output JSON path")
+
+def create_parser_svg(subparsers):
+    parser_svg = subparsers.add_parser(
+        "svg",
+        description=(
+"""Analyze SQLite DB and output the result in SVG (vector image) format."""
+),
+        )
+    parser_svg.set_defaults(func=output_dbinfo_svg)
+
+    parser_svg.add_argument(
+        "dbPath",
+        help="SQLite DB path")
+    parser_svg.add_argument(
+        "svgPath",
+        help="Output SVG path")
+    parser_svg.add_argument(
+        "--jsonPath",
+        default=None,
+        help="Path to intermediate DB info JSON")
+
+
+def output_dbinfo_json(args):
+    analyzer = SQLiteAnalyzer(args.dbPath)
+    if args.jsonPath is None:
+        analyzer.printJson()
+    else:
+        analyzer.dumpJson(outPath=args.jsonPath)
+
+def output_dbinfo_svg(args):
+    analyzer = SQLiteAnalyzer(args.dbPath)
+    json2Svg = Json2Svg()
+    if args.jsonPath is None:
+        jsonStr = analyzer.getJson()
+        json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath)
+    else:
+        analyzer.dumpJson(outPath=args.jsonPath)
+        json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath)
+    json2Svg.dumpSvg()
+
 
 def main():
-    dbPath = parse_args()
-    jsonPath = os.path.basename(dbPath) + ".json"
-    svgPath = os.path.basename(dbPath) + ".svg"
-    analyzer = SQLiteAnalyzer(dbPath)
-    analyzer.dumpJson(outPath=jsonPath)
-    json2Svg = Json2Svg(jsonPath=jsonPath, svgPath=svgPath)
-    json2Svg.dumpSvg()
+    parse_subcommands()
+    # dbPath = parse_args()
+    # jsonPath = os.path.basename(dbPath) + ".json"
+    # svgPath = os.path.basename(dbPath) + ".svg"
+    # analyzer = SQLiteAnalyzer(dbPath)
+    # analyzer.dumpJson(outPath=jsonPath)
+    # json2Svg = Json2Svg(jsonPath=jsonPath, svgPath=svgPath)
+    # json2Svg.dumpSvg()
 
 
 if __name__ == '__main__':
