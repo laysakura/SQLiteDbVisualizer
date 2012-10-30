@@ -103,10 +103,6 @@ class SQLiteAnalyzer(object):
         this_page = self._dbinfo["pages"][pageNum]
         this_page["cells"] = []
 
-        # TODO: Visualizing table interior page is also important for performance analysis
-        if page_type in (PageType.TABLE_INTERIOR, PageType.INDEX_INTERIOR):
-            return
-
         page_data = self._get_page_data(pageNum)
         CPAFormat = DbFormatConfig.cellPointerArrayFormat
         CPA_offset = cell_pointer_array_offset
@@ -122,6 +118,10 @@ class SQLiteAnalyzer(object):
                 self._read_table_leaf_cell(pageNum, cell_offset)
             elif page_type == PageType.INDEX_LEAF:
                 self._read_index_leaf_cell(pageNum, cell_offset)
+            elif page_type == PageType.TABLE_INTERIOR:
+                self._read_table_interior_cell(pageNum, cell_offset)
+            elif page_type == PageType.INDEX_INTERIOR:
+                self._read_index_interior_cell(pageNum, cell_offset)
 
     def _read_page_metadata(self, pageNum):
         """
@@ -150,15 +150,17 @@ class SQLiteAnalyzer(object):
         (btree_header_flag,
          free_block_offset,
          n_cells,
-         cell_content_area_offset) = self._get_btree_header(btree_header_data)
+         cell_content_area_offset,
+         rightmostChildPageNum) = self._get_btree_header(btree_header_data)
         page_type = _btree_header_flag_TO_PageType(btree_header_flag)
 
-        # B-tree leaf page?
+        # Really a b-tree leaf page?
         page_size = len(page_data)
         min_cell_len = DbFormatConfig.cellFormat["minCellLen"]
         len_interior = btHFormat["interiorLen"]
         len_leaf = btHFormat["leafLen"]
-        if (page_type in (PageType.TABLE_LEAF, PageType.INDEX_LEAF) and
+        if (page_type in (PageType.TABLE_LEAF, PageType.INDEX_LEAF,
+                          PageType.TABLE_INTERIOR, PageType.INDEX_INTERIOR) and
             (len_leaf <= free_block_offset <= page_size or
              free_block_offset == 0) and
             1 <= n_cells <= page_size / min_cell_len and
@@ -169,7 +171,15 @@ class SQLiteAnalyzer(object):
                 "nCells": n_cells,
                 "freeBlockOffset": free_block_offset,
                 "cellContentAreaOffset": cell_content_area_offset,
+                "livingBtree": btHFormat["uncertainLivingBtreeStr"],
             }
+            # First page
+            if pageNum == 1:
+                this_page["pageMetadata"]["livingBtree"] = btHFormat["firstPageLivingBtreeStr"]
+            # Rightmost child for interior pages
+            if page_type in (PageType.TABLE_INTERIOR, PageType.INDEX_INTERIOR):
+                assert rightmostChildPageNum is not None
+                this_page["pageMetadata"]["rightmostChildPageNum"] = rightmostChildPageNum
         else:
             this_page["pageMetadata"] = {
                 "pageType": PageType.UNCERTAIN
@@ -209,8 +219,10 @@ class SQLiteAnalyzer(object):
         ovflw_pg_head = _binstr2int_bigendian(ovflw_pg_head_binstr)
 
         # Read overflow page if necessary
+        overflowPageNum = None
         if localPayloadSize < payloadSize:
             self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
+            overflowPageNum = ovflw_pg_head
         else:
             overflowPageNumLen = 0
 
@@ -219,6 +231,7 @@ class SQLiteAnalyzer(object):
             "cellSize":
                 payloadSizeLen + rid_len + localPayloadSize + overflowPageNumLen,
             "rid": rid,
+            "overflowPage": overflowPageNum,
             "payload":  # TODO: fully support it
                 {
                     "offset": payloadOffset,
@@ -255,8 +268,10 @@ class SQLiteAnalyzer(object):
         ovflw_pg_head = _binstr2int_bigendian(ovflw_pg_head_binstr)
 
         # Read overflow page if necessary
+        overflowPageNum = None
         if localPayloadSize < payloadSize:
             self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
+            overflowPageNum = ovflw_pg_head
         else:
             overflowPageNumLen = 0
 
@@ -264,6 +279,7 @@ class SQLiteAnalyzer(object):
             "offset": cell_offset,
             "cellSize":
                 payloadSizeLen + localPayloadSize + overflowPageNumLen,
+            "overflowPage": overflowPageNum,
             "payload":  # TODO: fully support it
                 {
                     "offset": payloadOffset,
@@ -272,13 +288,45 @@ class SQLiteAnalyzer(object):
                 },
         })
 
+    def _read_table_interior_cell(self, pageNum, cell_offset):
+        this_page = self._dbinfo["pages"][pageNum]
+        page_data = self._get_page_data(pageNum)
+
+        # Table interior cell format:
+        # [leftChildPageNum (4byte), rid (variant)]
+
+        # Page num of left child
+        leftChildPageNumOffset = cell_offset
+        leftChildPageNumLen = DbFormatConfig.cellFormat["leftChildPageNumLen"]
+        leftChildPageNumBinstr = page_data[
+            leftChildPageNumOffset :
+            leftChildPageNumOffset + leftChildPageNumLen]
+        leftChildPageNum = _binstr2int_bigendian(leftChildPageNumBinstr)
+
+        # rid
+        rid_offset = leftChildPageNumOffset + leftChildPageNumLen
+        rid_variant = page_data[rid_offset :
+                                rid_offset + DbFormatConfig.variantFormat["maxLen"]]
+        (rid_len, rid) = _variant2int_bigendian(rid_variant)
+
+        this_page["cells"].append({
+            "offset": cell_offset,
+            "cellSize":
+                leftChildPageNumLen + rid_len,
+            "leftChildPage": leftChildPageNum,
+            "rid": rid,
+        })
+
     def _get_btree_header(self, btree_header_data):
         """
         @example
         (btree_header_flag,
         free_block_offset,
         n_cells,
-        cell_content_area_offset) = self._get_btree_header(btree_header_data)
+        cell_content_area_offset,
+        rightmostChildPageNum) = self._get_btree_header(btree_header_data)
+
+        @rightmostChildPageNum  Meaningless if not interior page
         """
         btHFormat = DbFormatConfig.btreeHeaderFormat
         bth_data = btree_header_data
@@ -294,7 +342,14 @@ class SQLiteAnalyzer(object):
         cell_content_area = _binstr2int_bigendian(
             bth_data[btHFormat["cellContentAreaOffset"] :
                      btHFormat["cellContentAreaOffset"] + btHFormat["cellContentAreaLen"]])
-        return (btree_header_flag, free_block_offset, n_cells, cell_content_area)
+        rightmostChildPageNum = _binstr2int_bigendian(
+            bth_data[btHFormat["rightmostChildPageNumOffset"] :
+                     btHFormat["rightmostChildPageNumOffset"] + btHFormat["rightmostChildPageNumLen"]])
+        return (btree_header_flag,
+                free_block_offset,
+                n_cells,
+                cell_content_area,
+                rightmostChildPageNum)
 
     def _get_local_payload_size_for_cell(self, payloadWholeSize):
         """
@@ -407,7 +462,33 @@ class SQLiteAnalyzer(object):
 
     def _mapBtreeAndPage(self):
         self._listBtrees()  # Set self._dbinfo["dbMetadata"]["btrees"]
-        print(self._dbinfo["dbMetadata"]["btrees"])
+        self._markBtreePages()
+
+    def _markBtreePages(self):
+        btrees = self._dbinfo["dbMetadata"]["btrees"]
+        for btreeDict in btrees:
+            self._markBtreePagesByTraversing(btreeDict)
+
+    def _markBtreePagesByTraversing(self, btreeDict):
+        self._markBtreePagesByTraversingRec(
+            btreeDict["rootPage"],
+            btreeDict["name"])
+
+    def _markBtreePagesByTraversingRec(self, pageNum, btreeName):
+        # Give name to this page
+        pageMetadata = self._dbinfo["pages"][pageNum]["pageMetadata"]
+        pageMetadata["livingBtree"] = btreeName
+
+        # Traverse btree pages by depth-first order
+        pageType = pageMetadata["pageType"]
+        if pageType in (PageType.INDEX_LEAF, PageType.TABLE_LEAF):
+            return
+        cells = self._dbinfo["pages"][pageNum]["cells"]
+        for cell in cells:
+            self._markBtreePagesByTraversingRec(cell["leftChildPage"], btreeName)
+        # Rightmost child
+        self._markBtreePagesByTraversingRec(pageMetadata["rightmostChildPageNum"], btreeName)
+
 
     def _listBtrees(self):
         firstPageData = self._get_page_data(1)

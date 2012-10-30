@@ -55,6 +55,7 @@ def get_dbinfo_template():
           #         "cellContentAreaOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "nextOverflowPageNum": None, # UINT  [OVERFLOW]
           #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #         "rightmostChildPageNum": None, # UINT  [TABLE_INTERIOR, INDEX_INTERIOR]
           #       }
           #
           #     # Table leaf example:
@@ -63,7 +64,9 @@ def get_dbinfo_template():
           #         {
           #           "offset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
           #           "cellSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #           "leftChildPage": None, # UINT  [TABLE_INTERIOR, INDEX_INTERIOR]
           #           "rid": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR]
+          #           "overflowPage": None, # UINT  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
           #           "payload":  # TODO: Only size information is supported currently  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
           #             {
           #               "size": None, # UINT

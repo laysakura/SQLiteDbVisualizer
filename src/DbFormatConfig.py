@@ -32,11 +32,16 @@ btreeHeaderFormat = {
     "nCellsLen": 2,
     "cellContentAreaOffset": 5,
     "cellContentAreaLen": 2,
+    "rightmostChildPageNumOffset": 8,
+    "rightmostChildPageNumLen": 4,
 
     "indexInteriorPageFlag": 0x02,
     "indexLeafPageFlag": 0x0A,
     "tableInteriorPageFlag": 0x05,
     "tableLeafPageFlag": 0x0D,
+
+    "firstPageLivingBtreeStr": "sqlite_master",
+    "uncertainLivingBtreeStr": "????",
 }
 
 cellPointerArrayFormat = {
@@ -56,6 +61,7 @@ cellFormat = {
     "minCellLen": 5,
 
     "overflowPageNumLen": 4,
+    "leftChildPageNumLen": 4,
 }
 
 payloadFormat = {
