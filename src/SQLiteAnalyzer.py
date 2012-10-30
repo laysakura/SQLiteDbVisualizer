@@ -175,7 +175,7 @@ class SQLiteAnalyzer(object):
             }
             # First page
             if pageNum == 1:
-                this_page["pageMetadata"]["livingBtree"] = btHFormat["firstPageLivingBtreeStr"]
+                this_page["pageMetadata"]["livingBtree"] = DbFormatConfig.sqlite_master["tableName"]
             # Rightmost child for interior pages
             if page_type in (PageType.TABLE_INTERIOR, PageType.INDEX_INTERIOR):
                 assert rightmostChildPageNum is not None
@@ -315,6 +315,65 @@ class SQLiteAnalyzer(object):
                 leftChildPageNumLen + rid_len,
             "leftChildPage": leftChildPageNum,
             "rid": rid,
+        })
+
+    def _read_index_interior_cell(self, pageNum, cell_offset):
+        # TODO: Too much duplicated code with _read_(index|table)_(leaf|interior)_cell
+
+        this_page = self._dbinfo["pages"][pageNum]
+        page_data = self._get_page_data(pageNum)
+
+        # Index interior cell format:
+        # [leftChildPageNum (4byte), payloadSize (variant), payload, overflowPageNum (4byte)]
+
+        # Page num of left child
+        leftChildPageNumOffset = cell_offset
+        leftChildPageNumLen = DbFormatConfig.cellFormat["leftChildPageNumLen"]
+        leftChildPageNumBinstr = page_data[
+            leftChildPageNumOffset :
+            leftChildPageNumOffset + leftChildPageNumLen]
+        leftChildPageNum = _binstr2int_bigendian(leftChildPageNumBinstr)
+
+        # Payload size
+        payloadSizeOffset = leftChildPageNumOffset
+        payloadSizeVariant = page_data[payloadSizeOffset :
+                                       payloadSizeOffset + DbFormatConfig.variantFormat["maxLen"]]
+        (payloadSizeLen, payloadSize) = _variant2int_bigendian(payloadSizeVariant)
+
+        # payload
+        payloadOffset = payloadSizeOffset + payloadSizeLen
+        (headerSize, bodySize) = self._get_whole_payload_size_for_cell(pageNum, payloadOffset)
+        payloadWholeSize = headerSize + bodySize
+        localPayloadSize = self._get_local_payload_size_for_cell(payloadWholeSize)
+        assert payloadSize == payloadWholeSize
+
+        # Might-be overflow page head
+        overflowPageNumLen = DbFormatConfig.cellFormat["overflowPageNumLen"]
+        ovflw_pg_head_offset = payloadOffset + localPayloadSize
+        ovflw_pg_head_binstr = page_data[ovflw_pg_head_offset :
+                                         ovflw_pg_head_offset + overflowPageNumLen]
+        ovflw_pg_head = _binstr2int_bigendian(ovflw_pg_head_binstr)
+
+        # Read overflow page if necessary
+        overflowPageNum = None
+        if localPayloadSize < payloadSize:
+            self._read_overflow_pages(ovflw_pg_head, payloadSize - localPayloadSize)
+            overflowPageNum = ovflw_pg_head
+        else:
+            overflowPageNumLen = 0
+
+        this_page["cells"].append({
+            "offset": cell_offset,
+            "cellSize":
+                leftChildPageNumLen + payloadSizeLen + localPayloadSize + overflowPageNumLen,
+            "leftChildPage": leftChildPageNum,
+            "overflowPage": overflowPageNum,
+            "payload":  # TODO: fully support it
+                {
+                    "offset": payloadOffset,
+                    "size": payloadSize,
+                    "headerSize": headerSize, "bodySize": bodySize
+                },
         })
 
     def _get_btree_header(self, btree_header_data):
@@ -463,6 +522,15 @@ class SQLiteAnalyzer(object):
     def _mapBtreeAndPage(self):
         self._listBtrees()  # Set self._dbinfo["dbMetadata"]["btrees"]
         self._markBtreePages()
+        self._addSqliteMasterToBtreeList()
+
+    def _addSqliteMasterToBtreeList(self):
+        # Add sqlite_master btree info
+        self._dbinfo["dbMetadata"]["btrees"].append({
+            "type": BtreeType.TABLE,
+            "name": DbFormatConfig.sqlite_master["tableName"],
+            "tableName": DbFormatConfig.sqlite_master["tableName"],
+        })
 
     def _markBtreePages(self):
         btrees = self._dbinfo["dbMetadata"]["btrees"]
@@ -491,6 +559,10 @@ class SQLiteAnalyzer(object):
 
 
     def _listBtrees(self):
+        """
+        @note
+        sqlite_master itself is not listed by this function.
+        """
         firstPageData = self._get_page_data(1)
         firstPageCells = self._dbinfo["pages"][1]["cells"]
         for cell in firstPageCells:

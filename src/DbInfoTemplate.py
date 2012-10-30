@@ -54,7 +54,7 @@ def get_dbinfo_template():
           #         "freeBlockOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "cellContentAreaOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #         "nextOverflowPageNum": None, # UINT  [OVERFLOW]
-          #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
           #         "rightmostChildPageNum": None, # UINT  [TABLE_INTERIOR, INDEX_INTERIOR]
           #       }
           #
