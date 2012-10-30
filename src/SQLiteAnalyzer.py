@@ -162,6 +162,7 @@ class SQLiteAnalyzer(object):
         page_type = _btree_header_flag_TO_PageType(btree_header_flag)
 
         # Really a b-tree leaf page?
+        # See: README.org - Specify page types
         page_size = len(page_data)
         min_cell_len = DbFormatConfig.cellFormat["minCellLen"]
         len_interior = btHFormat["interiorLen"]

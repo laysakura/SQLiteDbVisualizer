@@ -2,10 +2,6 @@ import __init__
 from DbInfoTemplate import PageType
 
 
-background = {
-    "fillColor": "#ffffff",
-}
-
 page = {
     "width": 512,
 

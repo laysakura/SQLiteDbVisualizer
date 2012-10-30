@@ -38,7 +38,6 @@ class Json2Svg(object):
         self._setBtreeColorDict()
 
     def _draw(self):
-        self._drawBackground()
         self._drawBtreeList(SvgConfig.btreeList["x"],
                             SvgConfig.btreeList["y"])
         self._drawPageList(SvgConfig.pageList["x"],
@@ -71,29 +70,12 @@ class Json2Svg(object):
         self._pageListY = SvgConfig.btreeList["y"] + self._btreeListHeight
         self._pageListHeight = self._pageHeight * self._dbinfo["dbMetadata"]["nPages"]
 
-        # Background
-        self._backgroundWidth = (
-            max(SvgConfig.btreeList["x"], SvgConfig.pageList["x"]) +  # Max offset
-            max(self._btreeListWidth, self._pageListWidth)    # Max width
-        )
-        self._backgroundHeight = (
-            SvgConfig.btreeList["y"] +  # Y of top element
-            self._btreeListHeight + self._pageListHeight  # Sum of each element height
-        )
-
     def _setBtreeColorDict(self):
         btreeList = self._dbinfo["dbMetadata"]["btrees"]
         self._btreeColorDict = {}
         for i, btree in enumerate(btreeList):
             colorPalette = SvgConfig.btreeColorPalette
             self._btreeColorDict[btree["name"]] = colorPalette[i % len(colorPalette)]
-
-    def _drawBackground(self):
-        self._svgDoc.addElement(
-            self._shapeBuilder.createRect(
-                0, 0,
-                self._backgroundWidth, self._backgroundHeight,
-                fill=SvgConfig.background["fillColor"]))
 
     def _drawPageList(self, x, y):
         nDrawnPage = 0
@@ -105,7 +87,7 @@ class Json2Svg(object):
                 (self._filterBtrees != [] and
                  pageMetadata["pageType"] in (
                         PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
-                        PageType.TABLE_LEAF, PageType.TABLE_LEAF) and
+                        PageType.TABLE_LEAF, PageType.TABLE_INTERIOR) and
                  pageMetadata["livingBtree"] in self._filterBtrees)):
 
                 self._drawPage(
