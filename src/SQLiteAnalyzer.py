@@ -1,6 +1,6 @@
 import __init__
 import DbFormatConfig
-from DbInfoTemplate import PageType, get_dbinfo_template
+from DbInfoTemplate import PageType, BtreeType, get_dbinfo_template
 import OutputJson
 from array import array
 
@@ -218,11 +218,13 @@ class SQLiteAnalyzer(object):
             "offset": cell_offset,
             "cellSize":
                 payloadSizeLen + rid_len + localPayloadSize + overflowPageNumLen,
-            "payloadSize": payloadSize,
             "rid": rid,
             "payload":  # TODO: fully support it
-                {"headerSize": headerSize, "bodySize": bodySize},
-            "livingBtree": "???"  # TODO: support it
+                {
+                    "offset": payloadOffset,
+                    "size": payloadSize,
+                    "headerSize": headerSize, "bodySize": bodySize
+                },
         })
 
     def _read_index_leaf_cell(self, pageNum, cell_offset):
@@ -262,10 +264,12 @@ class SQLiteAnalyzer(object):
             "offset": cell_offset,
             "cellSize":
                 payloadSizeLen + localPayloadSize + overflowPageNumLen,
-            "payloadSize": payloadSize,
             "payload":  # TODO: fully support it
-                {"headerSize": headerSize, "bodySize": bodySize},
-            "livingBtree": "???"  # TODO: support it
+                {
+                    "offset": payloadOffset,
+                    "size": payloadSize,
+                    "headerSize": headerSize, "bodySize": bodySize
+                },
         })
 
     def _get_btree_header(self, btree_header_data):
@@ -387,21 +391,95 @@ class SQLiteAnalyzer(object):
             "offset": ovflwPgFormat["nextOverflowPageOffset"] + ovflwPgFormat["nextOverflowPageLen"],
             "cellSize": cell_size,
             # TODO: parameters to specify what (record|index) (in btree) this overflow page belongs to
-            #   ex: RID, index key, livingBtree
+            #   ex: RID, index key
         })
 
     def _summarize_dbinfo(self):
-        # Check the validity of dbinfo first
+        self._checkDbinfoValidity()
+        self._mapBtreeAndPage()
+
+    def _checkDbinfoValidity(self):
         dbMdata = self._dbinfo["dbMetadata"]
         for k, v in dbMdata.iteritems():
             assert v is not None
-            assert len(dbMdata["btrees"]) >= 1  # At least sqlite_master
-
             pages = self._dbinfo["pages"]
             assert len(pages) >= 1
 
-        # TODO: set dbinfo["dbMetadata"]["btrees"] just for drawing
+    def _mapBtreeAndPage(self):
+        self._listBtrees()  # Set self._dbinfo["dbMetadata"]["btrees"]
+        print(self._dbinfo["dbMetadata"]["btrees"])
 
+    def _listBtrees(self):
+        firstPageData = self._get_page_data(1)
+        firstPageCells = self._dbinfo["pages"][1]["cells"]
+        for cell in firstPageCells:
+            # TODO: Any case where cells of sqlite_master have overflow page?
+            payload = cell["payload"]
+            payloadData = firstPageData[payload["offset"] :
+                                        payload["offset"] + payload["size"]]
+            btreeDict = self._fetchSqliteMasterRecord(payloadData)
+            self._dbinfo["dbMetadata"]["btrees"].append(btreeDict)
+
+    def _fetchSqliteMasterRecord(self, payloadData):
+        """
+        Only intent to:
+        - string in UTF-8  # TODO: Support other database encoding
+        - variant
+        """
+        payloadFormat = DbFormatConfig.payloadFormat
+        variantMaxLen = DbFormatConfig.variantFormat["maxLen"]
+
+        # TODO: Copied from _get_whole_payload_size_for_cell.
+        #   Remove redundancy
+        # Read header size
+        headerSizeVariant = payloadData[payloadFormat["headerSizeOffset"] :
+                                        payloadFormat["headerSizeOffset"] + variantMaxLen]
+        (headerSizeLen, headerSize) = _variant2int_bigendian(headerSizeVariant)
+
+        # Read serial type in header and calculate bodySize
+        bodySize = 0
+        stypeOffset = headerSizeLen
+        valueOffset = headerSize
+
+        # sqlite_master format:
+        # CREATE TABLE sqlite_master (
+        #   type text,
+        #   name text,
+        #   tbl_name text,
+        #   rootpage integer,
+        #   sql text);
+        ret = {}
+        for iCol in range(4):  # Read until rootpage
+            stypeVariant = payloadData[stypeOffset :
+                                       stypeOffset + variantMaxLen]
+            (stypeLen, stype) = _variant2int_bigendian(stypeVariant)
+            stypeOffset += stypeLen
+
+            # get valueData
+            valueSize = DbFormatConfig.serialType2ContentSize(stype)
+            valueData = payloadData[valueOffset :
+                                    valueOffset + valueSize]
+            valueOffset += valueSize
+
+            if iCol == 0:
+                s = _getSqliteString(valueData)
+                if s == "table":
+                    ret["type"] = BtreeType.TABLE
+                elif s == "index":
+                    ret["type"] = BtreeType.INDEX
+                else:
+                    assert False
+            elif iCol == 1:
+                s = _getSqliteString(valueData)
+                ret["name"] = s
+            elif iCol == 2:
+                s = _getSqliteString(valueData)
+                ret["tableName"] = s
+            elif iCol == 3:
+                (rootPageLen, rootPage) = _variant2int_bigendian(valueData)
+                ret["rootPage"] = rootPage
+
+        return ret
 
 def _btree_header_flag_TO_PageType(btree_header_flag):
     """
@@ -472,6 +550,11 @@ def _variant2int_bigendian(binstr):
                 break
     s01 = s01.replace(' ', '0')
     return (i+1, int(s01, 2))
+
+
+def _getSqliteString(data):
+    # TODO: Support non UTF-8 data
+    return data
 
 
 def _test():

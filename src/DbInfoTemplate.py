@@ -33,12 +33,15 @@ def get_dbinfo_template():
           "nPages": None, # UINT
           "usablePageSize": None, # UINT
           "btrees":
-            {
-                "JUST FOR PASS ASSERTION": {},
-              # "T0": {"type": BtreeType.TABLE },
-              # "T0_ind": {"type": BtreeType.INDEX }
+            [
+              # {
+              #   "type": BtreeType.INDEX,
+              #   "name": "idx_T0",
+              #   "tableName": "T0",
+              #   "rootPage": 8
+              # },
               # ...
-            }
+            ]
         },
       "pages":
         {
@@ -60,10 +63,11 @@ def get_dbinfo_template():
           #         {
           #           "offset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
           #           "cellSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #           "payloadSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
           #           "rid": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR]
           #           "payload":  # TODO: Only size information is supported currently  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
           #             {
+          #               "size": None, # UINT
+          #               "offset": None, # UINT
           #               "headerSize": None, # UINT
           #               "bodySize": None, # UINT
           #             },
