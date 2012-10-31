@@ -421,7 +421,7 @@ class SQLiteAnalyzer(object):
     def _get_local_payload_size_for_cell(self, payloadWholeSize):
         """
         @note
-        See: README.org - Trac overflow pages
+        See: README.org - Track overflow pages
 
         @return
         Local payload size for this cell.
