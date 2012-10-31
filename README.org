@@ -4,30 +4,30 @@
   It is fairly useful to see the extent of fragmentation in a database.
   It is *not* a database schema visualizer.
 
-  [[doc/mainView.png]]
+  [[http://raw.github.com/laysakura/SQLiteDbVisualizer/master/doc/filterFeature.png]]
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
   Here is the explanation of a bit complecated methods to analyze SQLite database.
 
 ** Specify page types
-   - B-tree page
-     1. Assume a page has b-tree header and read b-tree header flag, cell counts,
-        offset to first free-block, and offset to cell countent area.
-     2. Check if b-tree header flag is either of 0x0D, 0x0A, 0x02, or 0x05.
-     3. Check if both offset to first free-block and offset to cell countent area are
-        between b-tree header length (= 8 or 12) and page size, or 0.
-     4. Check if cell count is between 1 and (page size) / (minimum cell length (= 5))
+*** B-tree page
+    1. Assume a page has b-tree header and read b-tree header flag, cell counts,
+       offset to first free-block, and offset to cell countent area.
+    2. Check if b-tree header flag is either of 0x0D, 0x0A, 0x02, or 0x05.
+    3. Check if both offset to first free-block and offset to cell countent area are
+       between b-tree header length (= 8 or 12) and page size, or 0.
+    4. Check if cell count is between 1 and (page size) / (minimum cell length (= 5))
 
-   - Overflow page
-     A cell with large payload cell can have a link to overflow page.
-     (It is complecated to determine whether a payload is split into overflow pages.
-     See "Trac overflow pages" for detail.)
-     Jump to the overflow page and read overflow page header to get a pointer to next overflow page.
-     Last overflow page has 0x00 as a overflow page header.
+*** Overflow page
+    A cell with large payload cell can have a link to overflow page.
+    (It is complecated to determine whether a payload is split into overflow pages.
+    See "Trac overflow pages" for detail.)
+    Jump to the overflow page and read overflow page header to get a pointer to next overflow page.
+    Last overflow page has 0x00 as a overflow page header.
 
-   - Other pages
-     Not supported yet
+*** Other pages
+    Not supported yet
 
 ** Trac overflow pages
    1. Read a payloadSize from a cell.
