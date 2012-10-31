@@ -24,6 +24,39 @@ $ sqlite3 foobar.db vacuum
 
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
 
+* Usage
+  SQLiteDbVisualizer command (/sqlite-visualizer/) has svn-like subcommand interfaces.
+  The simplest usage to visualize a SQLite database as SVG image is shown below.
+  #+BEGIN_SRC sh
+$ sqlite-visualizer svg foobar.db foobar.svg
+  #+END_SRC
+
+  For more detailed usage, use help options.
+  #+BEGIN_SRC sh
+$ sqlite-visualizer -h
+$ sqlite-visualizer svg -h
+  #+END_SRC
+
+* Requirement
+  - Python (checked with v2.7.2)
+  - SQLite database (checked with v3.7.14)
+  - PySVG
+    - http://code.google.com/p/pysvg/
+
+* Features
+** Filtering by B-tree
+   Use /--filterBtrees/ option to get only pages of your interest.
+   #+BEGIN_SRC sh
+$ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show only pages related to table "T0" and index "T0_idx"
+   #+END_SRC
+
+** Plugable visualizer unit
+   /SQLiteDbVisualizer/ has /database analyzer/ and /visualizer/ modules separetely.
+   Database analyzer (/SQLiteAnalyzer.py/) reads a SQLite database and output its information in JSON form.
+   See the JSON format in /DbInfoTemplate.py/ .
+
+   Only SVG format is supported currently (/Json2Svg.py/).
+   Looking forward to other visualizers' pull requests!
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
@@ -72,6 +105,3 @@ $ sqlite3 foobar.db vacuum
    3. Payload values follow the variants.
       Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
    4. payloadHeaderSize + sum(valueSize) is the payload size.
-
-* References
-  - http://www.sqlite.org/fileformat2.html
