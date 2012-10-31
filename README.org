@@ -10,12 +10,12 @@
 ** See fragmentation and issue VACUUM
    A database seems fragmented.
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmented.png]]
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmentedVacuumed.png]]
 
    Then issue /VACUUM/ command and defragment it.
    #+BEGIN_SRC sh
 $ sqlite3 foobar.db vacuum
    #+END_SRC
-   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmentedVacuumed.png]]
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
