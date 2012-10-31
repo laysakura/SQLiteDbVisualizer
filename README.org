@@ -4,7 +4,7 @@
   It is fairly useful to see the extent of fragmentation in a database.
   It is *not* a database schema visualizer.
 
-  [[http://raw.github.com/laysakura/SQLiteDbVisualizer/master/doc/filterFeature.png]]
+  [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
 
   [[http://www.python.jp/doc/release/_static/py.png]]
 
