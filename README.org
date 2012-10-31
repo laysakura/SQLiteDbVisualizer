@@ -8,10 +8,10 @@
 
 * Use case
 ** See fragmentation and issue VACUUM
-   A database seems fragmented.
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmented.png]]
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmentedVacuumed.png]]
 
+   A database seems fragmented.
    Then issue /VACUUM/ command and defragment it.
    #+BEGIN_SRC sh
 $ sqlite3 foobar.db vacuum
