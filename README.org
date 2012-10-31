@@ -11,11 +11,17 @@
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmented.png]]
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmentedVacuumed.png]]
 
-   A database seems fragmented.
-   Then issue /VACUUM/ command and defragment it.
+   A database seems fragmented (left).
+   Then issue /VACUUM/ command and defragment it (right).
    #+BEGIN_SRC sh
 $ sqlite3 foobar.db vacuum
    #+END_SRC
+
+** Filter database pages by B-tree
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/mainView.png]]
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
+
+   If you just want to see records in table /T0/ , then you can filter the output.
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
