@@ -4,9 +4,18 @@
   It is fairly useful to see the extent of fragmentation in a database.
   It is *not* a database schema visualizer.
 
-  [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
+  [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/mainView.png]]
 
-  [[http://www.python.jp/doc/release/_static/py.png]]
+* Use case
+** See fragmentation and issue VACUUM
+   A database seems fragmented.
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmented.png]]
+
+   Then issue /VACUUM/ command and defragment it.
+   #+BEGIN_SRC sh
+$ sqlite3 foobar.db vacuum
+   #+END_SRC
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/fragmentedVacuumed.png]]
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
