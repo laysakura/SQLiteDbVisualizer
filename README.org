@@ -19,9 +19,11 @@ $ sqlite3 foobar.db vacuum
 
 ** Filter database pages by B-tree
    [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/mainView.png]]
-   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
 
    If you just want to see records in table /T0/ , then you can filter the output.
+
+   [[http://github.com/laysakura/SQLiteDbVisualizer/raw/master/doc/filterFeature.png]]
+
 
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
