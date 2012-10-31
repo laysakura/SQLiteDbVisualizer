@@ -105,3 +105,6 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
    3. Payload values follow the variants.
       Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
    4. payloadHeaderSize + sum(valueSize) is the payload size.
+
+* References
+  - http://www.sqlite.org/fileformat2.html
