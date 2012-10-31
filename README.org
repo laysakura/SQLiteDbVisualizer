@@ -6,6 +6,8 @@
 
   [[http://raw.github.com/laysakura/SQLiteDbVisualizer/master/doc/filterFeature.png]]
 
+  [[http://www.python.jp/doc/release/_static/py.png]]
+
 * Methodology
   SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
   Here is the explanation of a bit complecated methods to analyze SQLite database.
