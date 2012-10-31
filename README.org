@@ -1,40 +1,45 @@
-* SQLite internal terms
-  - cell
-    (Table|Index) (leaf|interior) pages have cells.
-    See http://www.sqlite.org/fileformat2.html - B-tree Cell Format
+* SQLiteDbVisualizer
+  /SQLiteDbVisualizer/ is a tool to visualize SQLite databases.
+
+  It is fairly useful to see the extent of fragmentation in a database.
+  It is *not* a database schema visualizer.
+
+  [[doc/mainView.png]]
 
 * Methodology
+  SQLiteDbVisualizer is written carefully refering to http://www.sqlite.org/fileformat2.html .
+  Here is the explanation of a bit complecated methods to analyze SQLite database.
+
 ** Specify page types
-   Note that Offsets should be +100 for first page.
-   - (Table|Index) leaf page
-     Check if all of these conditions are satisfied.
-     1. Page[0x00] (B-tree header flag) (100 for page#1) is 0x0D (table) or 0x0A (index)
-     2. Page[0x01-0x02] (offset to 1st free block) is lenLeaf to pageSize or 0
-     3. Page[0x03-0x04] (number of cells) is 1 to pageSize/minCellLen
-     4. Page[0x05-0x06] (offset to cell content area) is lenLeaf to pageSize or 0
-   - (Table|Index) interior page
-     Check if all of these conditions are satisfied.
-     1. Page[0x00] (B-tree header flag) is 0x02 (index) or 0x05 (table)
-     2. Page[0x01-0x02] (offset to 1st free block) is lenInterior to pageSize or 0
-     3. Page[0x03-0x04] (number of cells) is 1 to pageSize/minCellLen
-     4. Page[0x05-0x06] (offset to cell content area) is lenInterior to pageSize or 0
+   - B-tree page
+     1. Assume a page has b-tree header and read b-tree header flag, cell counts,
+        offset to first free-block, and offset to cell countent area.
+     2. Check if b-tree header flag is either of 0x0D, 0x0A, 0x02, or 0x05.
+     3. Check if both offset to first free-block and offset to cell countent area are
+        between b-tree header length (= 8 or 12) and page size, or 0.
+     4. Check if cell count is between 1 and (page size) / (minimum cell length (= 5))
+
    - Overflow page
-     A large (table|index) leaf page cell can have a link to overflow page.
-     Each overflow page header (0x00-0x03) have next-page link.
-   - TODO: Other pages
+     A cell with large payload cell can have a link to overflow page.
+     (It is complecated to determine whether a payload is split into overflow pages.
+     See "Trac overflow pages" for detail.)
+     Jump to the overflow page and read overflow page header to get a pointer to next overflow page.
+     Last overflow page has 0x00 as a overflow page header.
+
+   - Other pages
+     Not supported yet
 
 ** Trac overflow pages
-   Read a payload in a cell taking overflow pages into account.
-   1. Read a variant from cell[0x00] and get payloadSize
-   2. usableSize = pageSize - reservedSpace
-      where both pageSize and reservedSpace are read from database header.
+   1. Read a payloadSize from a cell.
+   2. usableSize = pageSize - reservedSpace.
+      Both pageSize and reservedSpace are read from database header.
    3. maxLocal = usableSize - 35
    4. minLocal = ((usableSize - 12) * 32/255) - 23
    5. If payloadSize <= maxLocal, there is no overflow page for the cell
    6. Else, let localSize = minLocal + ((payloadSize - minLocal) % (usableSize - 4))
       a. If localSize > maxLocal, minLocal bytes are in this page.
       b. Else, localSize bytes are in this page.
-   7. Remnant payload can be found on overflow page.
+   7. Remnant payload is split into overflow pages.
       Overflow page number is in the last 4 bytes in the cell.
    8. Each overflow page has a link to the next overflow page in page[0x00-0x03].
       Page[0x04 - usableSize] is reserved exclusively for the part of the payload.
@@ -48,3 +53,6 @@
    3. Payload values follow the variants.
       Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
    4. payloadHeaderSize + sum(valueSize) is the payload size.
+
+* References
+  - http://www.sqlite.org/fileformat2.html
