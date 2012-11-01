@@ -37,7 +37,7 @@ $ sqlite-visualizer -h
 $ sqlite-visualizer svg -h
   #+END_SRC
 
-* Requirement
+* Requirements
   - Python (checked with v2.7.2)
   - SQLite database (checked with v3.7.14)
   - PySVG
@@ -57,6 +57,15 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
 
    Only SVG format is supported currently (/Json2Svg.py/).
    Looking forward to other visualizers' pull requests!
+
+* Limitations
+  - WAL mode database is not supported
+    - http://www.sqlite.org/wal.html
+  - Only UTF-8 is supported as TEXT encoding (easily fixed)
+  - Not suitable for quite large databases mainly because SVG is
+    not so good format to visualize large images.
+    (Got)
+    A kind of sophisticated GUI is good solution for large databases (waiting for pull requests :D )
 
 * Methodology
   SQLiteDbVisualizer is written carefully referring to http://www.sqlite.org/fileformat2.html .
@@ -106,5 +115,13 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
       Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
    4. payloadHeaderSize + sum(valueSize) is the payload size.
 
-* References
-  - http://www.sqlite.org/fileformat2.html
+** Relate B-tree and pages
+   It is beneficial to see the b-tree name (table name or index name) for each b-tree page.
+   But unfortunately, either b-tree pages and cells do not have b-tree name information.
+
+   To relate B-tree and pages, tree traversal method was used.
+   /sqlite_master/ table (in first page) has page numbers of root b-trees.
+   And each b-tree interior page has its children pages (nodes) information.
+   (Strictly speaking, a left child is held by a cell and the rightmost child is held by b-tree header.)
+
+   Give the b-tree name to each b-tree page while traversal.
