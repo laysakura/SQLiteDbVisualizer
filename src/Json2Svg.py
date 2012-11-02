@@ -181,15 +181,14 @@ class Json2Svg(object):
                            cell, pageType)
 
     def _drawCellInfo(self, cellX, cellY, cell, pageType):
-        if self._displayRid:
+        if (self._displayRid and
+            pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR)):
             self._drawRid(cellX, cellY, cell["rid"], pageType)
 
     def _drawRid(self, x, y, rid, pageType):
         style = pysvg.builders.StyleBuilder()
         style.setFontSize(self._cellHeight)
-        s = ""
-        if pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR) :
-            s = str(rid)
+        s = str(rid)
         self._svgDoc.addElement(
             pysvg.text.text(s,
                             x=x + (self._cellHeight/2),

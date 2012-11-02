@@ -6,14 +6,22 @@ class BtreeType:
     TABLE = "table"
     INDEX = "index"
 
+
 class PageType:
-    # FIRST_PAGE = "page#1"     # has db metadata
     TABLE_INTERIOR = "table interior page"
     TABLE_LEAF = "table leaf page"
     INDEX_INTERIOR = "index interior page"
     INDEX_LEAF = "index leaf page"
     OVERFLOW = "overflow page"
     UNCERTAIN = "uncertain page"
+
+
+class CellContent:
+    LEFT_CHILD_PAGE_NUM = "left child page num"
+    PAYLOAD_SIZE = "payload size"
+    RID = "rid"
+    PAYLOAD = "payload"
+    OVERFLOW_PAGE_HEAD = "overflow page head"
 
 
 def get_dbinfo_template():
