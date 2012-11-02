@@ -1,4 +1,3 @@
-
 import SvgConfig
 import DbFormatConfig
 from DbInfoTemplate import PageType
