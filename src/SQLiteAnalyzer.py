@@ -8,6 +8,7 @@ import json
 
 
 
+
 class SQLiteAnalyzer(object):
     """
     @usage
