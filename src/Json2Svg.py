@@ -46,7 +46,6 @@ class Json2Svg(object):
     def _postDraw(self):
         self._svgDoc.save(self._svgPath)
 
-
     def _prepPysvgObj(self):
         self._svgDoc = pysvg.structure.svg()
         self._shapeBuilder = pysvg.builders.ShapeBuilder()
@@ -63,19 +62,23 @@ class Json2Svg(object):
 
         # PageList
         self._pageWidth = SvgConfig.page["width"]
-        self._pageListWidth = SvgConfig.page["width"] + SvgConfig.pageList["pageNumWidth"]
+        self._pageListWidth = (SvgConfig.page["width"] +
+                               SvgConfig.pageList["pageNumWidth"])
         self._cellHeight = SvgConfig.cell["height"]
-        self._nRowsInPage = self._dbinfo["dbMetadata"]["pageSize"] / self._pageWidth
+        self._nRowsInPage = (self._dbinfo["dbMetadata"]["pageSize"] /
+                             self._pageWidth)
         self._pageHeight = self._cellHeight * self._nRowsInPage
         self._pageListY = SvgConfig.btreeList["y"] + self._btreeListHeight
-        self._pageListHeight = self._pageHeight * self._dbinfo["dbMetadata"]["nPages"]
+        self._pageListHeight = (self._pageHeight *
+                                self._dbinfo["dbMetadata"]["nPages"])
 
     def _setBtreeColorDict(self):
         btreeList = self._dbinfo["dbMetadata"]["btrees"]
         self._btreeColorDict = {}
         for i, btree in enumerate(btreeList):
             colorPalette = SvgConfig.btreeColorPalette
-            self._btreeColorDict[btree["name"]] = colorPalette[i % len(colorPalette)]
+            self._btreeColorDict[btree["name"]] = colorPalette[
+                i % len(colorPalette)]
 
     def _drawPageList(self, x, y):
         nDrawnPage = 0
@@ -128,7 +131,8 @@ class Json2Svg(object):
                             style=style.getStyle()))
 
     def _drawPage(self, x, y, pageNum):
-        pageType = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]["pageType"]
+        page = self._dbinfo["pages"][str(pageNum)]
+        pageType = page["pageMetadata"]["pageType"]
         self._svgDoc.addElement(
             self._shapeBuilder.createRect(
                 x, y,
@@ -154,7 +158,8 @@ class Json2Svg(object):
         cellColor = "#cccccc"
         if pageType in (PageType.TABLE_LEAF, PageType.TABLE_INTERIOR,
                         PageType.INDEX_LEAF, PageType.INDEX_INTERIOR):
-            cellColor = self._btreeColorDict[page["pageMetadata"]["livingBtree"]]
+            livingBtree = page["pageMetadata"]["livingBtree"]
+            cellColor = self._btreeColorDict[livingBtree]
         cells = page["cells"]
         for cell in cells:
             self._drawCell(pageX, pageY,
@@ -176,9 +181,10 @@ class Json2Svg(object):
             remSize -= widthInRow
             x = pageX
             y += self._cellHeight
-        self._drawCellInfo(pageX + offset % self._pageWidth,
-                           pageY + (offset / self._pageWidth) * self._cellHeight,
-                           cell, pageType)
+        self._drawCellInfo(
+            pageX + offset % self._pageWidth,
+            pageY + (offset / self._pageWidth) * self._cellHeight,
+            cell, pageType)
 
     def _drawCellInfo(self, cellX, cellY, cell, pageType):
         if (self._displayRid and
@@ -190,7 +196,8 @@ class Json2Svg(object):
         style.setFontSize(self._cellHeight)
         s = str(rid)
         self._svgDoc.addElement(
-            pysvg.text.text(s,
-                            x=x + (self._cellHeight/2),
-                            y=y + (self._cellHeight/2),
-                            style=style.getStyle()))
+            pysvg.text.text(
+                s,
+                x=x + (self._cellHeight / 2),
+                y=y + (self._cellHeight / 2),
+                style=style.getStyle()))

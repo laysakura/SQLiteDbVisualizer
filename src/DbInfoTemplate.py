@@ -37,9 +37,9 @@ def get_dbinfo_template():
     return {
       "dbMetadata":
         {
-          "pageSize": None, # UINT
-          "nPages": None, # UINT
-          "usablePageSize": None, # UINT
+          "pageSize": None,  # UINT
+          "nPages": None,  # UINT
+          "usablePageSize": None,  # UINT
           "btrees":
             [
               # {
@@ -57,25 +57,54 @@ def get_dbinfo_template():
           #   {
           #     "pageMetadata":
           #       {
-          #         "pageType": PageType.TABLE_LEAF,  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #         "nCells": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #         "freeBlockOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
-          #         "cellContentAreaOffset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
-          #         "nextOverflowPageNum": None, # UINT  [OVERFLOW]
-          #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #         "rightmostChildPageNum": None, # UINT  [TABLE_INTERIOR, INDEX_INTERIOR]
+          #         # [TABLE_LEAF, TABLE_INTERIOR,
+          #         #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #         "pageType": PageType.TABLE_LEAF,
+          #
+          #         # [TABLE_LEAF, TABLE_INTERIOR,
+          #         #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #         "nCells": None,  # UINT
+          #
+          #         # [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #         "freeBlockOffset": None, # UINT
+          #
+          #         # [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR]
+          #         "cellContentAreaOffset": None, # UINT
+          #
+          #         # [OVERFLOW]
+          #         "nextOverflowPageNum": None, # UINT
+          #
+          #         # [TABLE_LEAF, TABLE_INTERIOR,
+          #         #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #         "livingBtree": "T0"  # One of ret["dbMetadata"]["btrees"]
+          #
+          #         # [TABLE_INTERIOR, INDEX_INTERIOR]
+          #         "rightmostChildPageNum": None, # UINT
           #       }
           #
           #     # Table leaf example:
           #     "cells":
           #       [
           #         {
-          #           "offset": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #           "cellSize": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR, INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
-          #           "leftChildPage": None, # UINT  [TABLE_INTERIOR, INDEX_INTERIOR]
-          #           "rid": None, # UINT  [TABLE_LEAF, TABLE_INTERIOR]
-          #           "overflowPage": None, # UINT  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
-          #           "payload":  # TODO: Only size information is supported currently  [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
+          #           # [TABLE_LEAF, TABLE_INTERIOR,
+          #           #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #           "offset": None, # UINT
+          #
+          #           # [TABLE_LEAF, TABLE_INTERIOR,
+          #           #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #           "cellSize": None, # UINT
+          #
+          #           # [TABLE_INTERIOR, INDEX_INTERIOR]
+          #           "leftChildPage": None, # UINT
+          #
+          #           # [TABLE_LEAF, TABLE_INTERIOR]
+          #           "rid": None, # UINT
+          #
+          #           # [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
+          #           "overflowPage": None, # UINT
+          #
+          #           # [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
+          #           "payload":  # TODO: payload contents?
           #             {
           #               "size": None, # UINT
           #               "offset": None, # UINT

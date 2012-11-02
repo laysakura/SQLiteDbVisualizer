@@ -1,4 +1,3 @@
-import __init__
 from DbInfoTemplate import PageType
 
 
@@ -56,4 +55,3 @@ pageList = {  # Top element
 cell = {
     "height": 4,
 }
-

@@ -1,13 +1,9 @@
-import __init__
 import DbFormatConfig
 from DbInfoTemplate import (PageType,
                             BtreeType,
                             CellContent,
                             get_dbinfo_template)
 import json
-
-
-
 
 
 class SQLiteAnalyzer(object):

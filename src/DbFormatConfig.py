@@ -49,9 +49,12 @@ sqlite_master = {
 }
 
 cellPointerArrayFormat = {
-    "offsetInPage1": btreeHeaderFormat["offsetInPage1"] + btreeHeaderFormat["leafLen"],
-    "offsetInLeafPage": btreeHeaderFormat["offsetInPage"] + btreeHeaderFormat["leafLen"],
-    "offsetInInteriorPage": btreeHeaderFormat["offsetInPage"] + btreeHeaderFormat["interiorLen"],
+    "offsetInPage1": (btreeHeaderFormat["offsetInPage1"] +
+                      btreeHeaderFormat["leafLen"]),
+    "offsetInLeafPage": (btreeHeaderFormat["offsetInPage"] +
+                         btreeHeaderFormat["leafLen"]),
+    "offsetInInteriorPage": (btreeHeaderFormat["offsetInPage"] +
+                             btreeHeaderFormat["interiorLen"]),
 
     "elemLen": 2,
 }
@@ -87,10 +90,11 @@ varintFormat = {
 def serialType2ContentSize(stype):
     """
     @note
-    See: http://www.sqlite.org/fileformat2.html - Serial Type Codes Of The Record Format
+    See: http://www.sqlite.org/fileformat2.html -
+           Serial Type Codes Of The Record Format
     """
     assert stype not in (10, 11)
-    if stype in range(0, 4+1):
+    if stype in range(0, 4 + 1):
         return stype
     elif stype in (5, 7):
         return stype + 1
