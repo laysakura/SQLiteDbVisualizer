@@ -79,7 +79,7 @@ overflowPageFormat = {
     "pageNumForFinal": 0x00,
 }
 
-variantFormat = {
+varintFormat = {
     "maxLen": 9,
 }
 

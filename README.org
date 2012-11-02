@@ -106,12 +106,12 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
       Page[0x04 - usableSize] is reserved exclusively for the part of the payload.
 
 ** Read payloads
-   1. Read a variant from offset 0 (payloadHeaderSize).
-      Let the variant size be firstStypeOffset.
-   2. Read variants from firstStypeOffset to payloadHeaderSize.
+   1. Read a varint from offset 0 (payloadHeaderSize).
+      Let the varint size be firstStypeOffset.
+   2. Read varints from firstStypeOffset to payloadHeaderSize.
       Treat each value as a Serial Type.
       (See: http://www.sqlite.org/fileformat2.html - Serial Type Codes Of The Record Format)
-   3. Payload values follow the variants.
+   3. Payload values follow the varints.
       Each size of the values is calculated from the table "Serial Type Codes Of The Record Format".
    4. payloadHeaderSize + sum(valueSize) is the payload size.
 

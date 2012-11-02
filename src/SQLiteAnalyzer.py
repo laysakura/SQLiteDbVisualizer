@@ -297,16 +297,16 @@ class SQLiteAnalyzer(object):
         return (leftChildPageNumLen, leftChildPageNum)
 
     def _getPayloadSizeFromCell(self, pageNum, offset):
-        payloadSizeVariant = self._get_page_data(pageNum)[
+        payloadSizeVarint = self._get_page_data(pageNum)[
             offset:
-            offset + DbFormatConfig.variantFormat["maxLen"]]
-        return _variant2int_bigendian(payloadSizeVariant)
+            offset + DbFormatConfig.varintFormat["maxLen"]]
+        return _varint2int_bigendian(payloadSizeVarint)
 
     def _getRidFromCell(self, pageNum, offset):
-        ridVariant = self._get_page_data(pageNum)[
+        ridVarint = self._get_page_data(pageNum)[
             offset:
-            offset + DbFormatConfig.variantFormat["maxLen"]]
-        return _variant2int_bigendian(ridVariant)
+            offset + DbFormatConfig.varintFormat["maxLen"]]
+        return _varint2int_bigendian(ridVarint)
 
     def _getPayloadFromCell(self, pageNum, offset):
         (headerSize, bodySize) = self._getWholePayloadSize(pageNum, offset)
@@ -342,20 +342,27 @@ class SQLiteAnalyzer(object):
         btHFormat = DbFormatConfig.btreeHeaderFormat
         bth_data = btree_header_data
         btree_header_flag = _binstr2int_bigendian(
-            bth_data[btHFormat["btreeFlagOffset"]:
-                     btHFormat["btreeFlagOffset"] + btHFormat["btreeFlagLen"]])
+            bth_data[
+                btHFormat["btreeFlagOffset"]:
+                btHFormat["btreeFlagOffset"] + btHFormat["btreeFlagLen"]])
         free_block_offset = _binstr2int_bigendian(
-            bth_data[btHFormat["freeBlockOffset"]:
-                     btHFormat["freeBlockOffset"] + btHFormat["freeBlockLen"]])
+            bth_data[
+                btHFormat["freeBlockOffset"]:
+                btHFormat["freeBlockOffset"] + btHFormat["freeBlockLen"]])
         n_cells = _binstr2int_bigendian(
-            bth_data[btHFormat["nCellsOffset"]:
-                     btHFormat["nCellsOffset"] + btHFormat["nCellsLen"]])
+            bth_data[
+                btHFormat["nCellsOffset"]:
+                btHFormat["nCellsOffset"] + btHFormat["nCellsLen"]])
         cell_content_area = _binstr2int_bigendian(
-            bth_data[btHFormat["cellContentAreaOffset"]:
-                     btHFormat["cellContentAreaOffset"] + btHFormat["cellContentAreaLen"]])
+            bth_data[
+                btHFormat["cellContentAreaOffset"]:
+                (btHFormat["cellContentAreaOffset"] +
+                 btHFormat["cellContentAreaLen"])])
         rightmostChildPageNum = _binstr2int_bigendian(
-            bth_data[btHFormat["rightmostChildPageNumOffset"]:
-                     btHFormat["rightmostChildPageNumOffset"] + btHFormat["rightmostChildPageNumLen"]])
+            bth_data[
+                btHFormat["rightmostChildPageNumOffset"]:
+                (btHFormat["rightmostChildPageNumOffset"] +
+                 btHFormat["rightmostChildPageNumLen"])])
         return (btree_header_flag,
                 free_block_offset,
                 n_cells,
@@ -369,17 +376,11 @@ class SQLiteAnalyzer(object):
 
         @return
         Local payload size for this cell.
-
-        @example
-        payloadLocalSize = self._getPayloadSizeInCell(cell_offset, payloadWholeSize)
-        if payloadLocalSize < payloadWholeSize:
-            # This cell has overflow pages
-            self._read_overflow_pages(overflowPageHead, payloadWholeSize - payloadLocalSize)
         """
         payloadSize = payloadWholeSize
         usableSize = self._dbinfo["dbMetadata"]["usablePageSize"]
         maxLocal = usableSize - 35
-        minLocal = ((usableSize - 12) * 32/255) - 23
+        minLocal = ((usableSize - 12) * 32 / 255) - 23
         if payloadSize <= maxLocal:
             return payloadSize
         localSize = minLocal + ((payloadSize - minLocal) % (usableSize - 4))
@@ -398,20 +399,21 @@ class SQLiteAnalyzer(object):
         payloadData = page_data[payloadOffset:]
 
         payloadFormat = DbFormatConfig.payloadFormat
-        variantMaxLen = DbFormatConfig.variantFormat["maxLen"]
+        varintMaxLen = DbFormatConfig.varintFormat["maxLen"]
 
         # Read header size
-        headerSizeVariant = payloadData[payloadFormat["headerSizeOffset"]:
-                                        payloadFormat["headerSizeOffset"] + variantMaxLen]
-        (headerSizeLen, headerSize) = _variant2int_bigendian(headerSizeVariant)
+        headerSizeVarint = payloadData[
+            payloadFormat["headerSizeOffset"]:
+            payloadFormat["headerSizeOffset"] + varintMaxLen]
+        (headerSizeLen, headerSize) = _varint2int_bigendian(headerSizeVarint)
 
         # Read serial type in header and calculate bodySize
         bodySize = 0
         stypeOffset = headerSizeLen
         while stypeOffset < headerSize:
-            stypeVariant = payloadData[stypeOffset:
-                                       stypeOffset + variantMaxLen]
-            (stypeLen, stype) = _variant2int_bigendian(stypeVariant)
+            stypeVarint = payloadData[stypeOffset:
+                                       stypeOffset + varintMaxLen]
+            (stypeLen, stype) = _varint2int_bigendian(stypeVarint)
             bodySize += DbFormatConfig.serialType2ContentSize(stype)
             stypeOffset += stypeLen
 
@@ -421,7 +423,7 @@ class SQLiteAnalyzer(object):
         assert 1 <= pageNum <= self._dbinfo["dbMetadata"]["nPages"]
 
         # Read for the first time
-        if not self._dbinfo["pages"].has_key(pageNum):
+        if not pageNum in self._dbinfo["pages"]:
             self._dbinfo["pages"][pageNum] = {
                 "pageMetadata": {
                     "pageType": PageType.OVERFLOW,
@@ -437,14 +439,17 @@ class SQLiteAnalyzer(object):
 
         # Read next overflow page num
         ovflwPgFormat = DbFormatConfig.overflowPageFormat
-        next_ovflw_pg_binstr = page_data[ovflwPgFormat["nextOverflowPageOffset"]:
-                                         ovflwPgFormat["nextOverflowPageOffset"] + ovflwPgFormat["nextOverflowPageLen"]]
+        next_ovflw_pg_binstr = page_data[
+            ovflwPgFormat["nextOverflowPageOffset"]:
+            (ovflwPgFormat["nextOverflowPageOffset"] +
+             ovflwPgFormat["nextOverflowPageLen"])]
         next_ovflw_pg = _binstr2int_bigendian(next_ovflw_pg_binstr)
         assert 0 <= next_ovflw_pg <= self._dbinfo["dbMetadata"]["nPages"]
         thisPage["pageMetadata"]["nextOverflowPageNum"] = next_ovflw_pg
 
         cell_size = None
-        cell_area_len = self._dbinfo["dbMetadata"]["usablePageSize"] - ovflwPgFormat["nextOverflowPageLen"]
+        cell_area_len = (self._dbinfo["dbMetadata"]["usablePageSize"] -
+                         ovflwPgFormat["nextOverflowPageLen"])
 
         # This page is the last overflow page
         if next_ovflw_pg == ovflwPgFormat["pageNumForFinal"]:
@@ -456,9 +461,11 @@ class SQLiteAnalyzer(object):
             self._read_overflow_pages(next_ovflw_pg, rem_len - cell_size)
 
         thisPage["cells"].append({
-            "offset": ovflwPgFormat["nextOverflowPageOffset"] + ovflwPgFormat["nextOverflowPageLen"],
+            "offset": (ovflwPgFormat["nextOverflowPageOffset"] +
+                       ovflwPgFormat["nextOverflowPageLen"]),
             "cellSize": cell_size,
-            # TODO: parameters to specify what (record|index) (in btree) this overflow page belongs to
+            # TODO: parameters to specify what (record|index) (in btree)
+            #   this overflow page belongs to
             #   ex: RID, index key
         })
 
@@ -507,10 +514,11 @@ class SQLiteAnalyzer(object):
             return
         cells = self._dbinfo["pages"][pageNum]["cells"]
         for cell in cells:
-            self._markBtreePagesByTraversingRec(cell["leftChildPage"], btreeName)
+            self._markBtreePagesByTraversingRec(
+                cell["leftChildPage"], btreeName)
         # Rightmost child
-        self._markBtreePagesByTraversingRec(pageMetadata["rightmostChildPageNum"], btreeName)
-
+        self._markBtreePagesByTraversingRec(
+            pageMetadata["rightmostChildPageNum"], btreeName)
 
     def _listBtrees(self):
         """
@@ -531,20 +539,20 @@ class SQLiteAnalyzer(object):
         """
         Only intent to:
         - string in UTF-8  # TODO: Support other database encoding
-        - variant
+        - varint
         """
         payloadFormat = DbFormatConfig.payloadFormat
-        variantMaxLen = DbFormatConfig.variantFormat["maxLen"]
+        varintMaxLen = DbFormatConfig.varintFormat["maxLen"]
 
         # TODO: Copied from _getWholePayloadSize.
         #   Remove redundancy
         # Read header size
-        headerSizeVariant = payloadData[payloadFormat["headerSizeOffset"]:
-                                        payloadFormat["headerSizeOffset"] + variantMaxLen]
-        (headerSizeLen, headerSize) = _variant2int_bigendian(headerSizeVariant)
+        headerSizeVarint = payloadData[
+            payloadFormat["headerSizeOffset"]:
+            payloadFormat["headerSizeOffset"] + varintMaxLen]
+        (headerSizeLen, headerSize) = _varint2int_bigendian(headerSizeVarint)
 
         # Read serial type in header and calculate bodySize
-        bodySize = 0
         stypeOffset = headerSizeLen
         valueOffset = headerSize
 
@@ -557,9 +565,9 @@ class SQLiteAnalyzer(object):
         #   sql text);
         ret = {}
         for iCol in range(4):  # Read until rootpage
-            stypeVariant = payloadData[stypeOffset:
-                                       stypeOffset + variantMaxLen]
-            (stypeLen, stype) = _variant2int_bigendian(stypeVariant)
+            stypeVarint = payloadData[stypeOffset:
+                                       stypeOffset + varintMaxLen]
+            (stypeLen, stype) = _varint2int_bigendian(stypeVarint)
             stypeOffset += stypeLen
 
             # get valueData
@@ -583,16 +591,19 @@ class SQLiteAnalyzer(object):
                 s = _getSqliteString(valueData)
                 ret["tableName"] = s
             elif iCol == 3:
-                (rootPageLen, rootPage) = _variant2int_bigendian(valueData)
+                (rootPageLen, rootPage) = _varint2int_bigendian(valueData)
                 ret["rootPage"] = rootPage
 
         return ret
+
 
 def _btree_header_flag_TO_PageType(btree_header_flag):
     """
     >>> _btree_header_flag_TO_PageType(0x00) == PageType.UNCERTAIN
     True
-    >>> _btree_header_flag_TO_PageType(DbFormatConfig.btreeHeaderFormat['tableInteriorPageFlag']) == PageType.TABLE_INTERIOR
+    >>> _btree_header_flag_TO_PageType( \
+            DbFormatConfig.btreeHeaderFormat['tableInteriorPageFlag']) \
+        == PageType.TABLE_INTERIOR
     True
     """
     btHFormat = DbFormatConfig.btreeHeaderFormat
@@ -602,7 +613,7 @@ def _btree_header_flag_TO_PageType(btree_header_flag):
         btHFormat["tableInteriorPageFlag"]: PageType.TABLE_INTERIOR,
         btHFormat["tableLeafPageFlag"]: PageType.TABLE_LEAF,
     }
-    if not d.has_key(btree_header_flag):
+    if btree_header_flag not in d:
         return PageType.UNCERTAIN
     return d[btree_header_flag]
 
@@ -624,30 +635,34 @@ def _binstr2int_bigendian(binstr):
     return ret
 
 
-def _variant2int_bigendian(binstr):
+def _varint2int_bigendian(binstr):
     """
     @note
-    See variant format (very simple):
-    http://forensicsfromthesausagefactory.blogspot.jp/2011/05/analysis-of-record-structure-within.html
+    See varint format (very simple):
+    http://www.sqlite.org/fileformat2.html - 'A variable-length integer ...'
 
     @return
-    (VariantLength, effNumber)
+    (VarintLength, effNumber)
 
     >>> s = chr(int('10000001', 2)) + chr(int('00101001', 2))
-    >>> _variant2int_bigendian(s)
+    >>> _varint2int_bigendian(s)
     (2, 169)
     >>> s = chr(int('10000001', 2)) + chr(int('00000001', 2))
-    >>> _variant2int_bigendian(s)
+    >>> _varint2int_bigendian(s)
     (2, 129)
-    >>> s = chr(int('10000000', 2)) + chr(int('10000000', 2)) + chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2)) +  chr(int('10000000', 2))
-    >>> _variant2int_bigendian(s)
+    >>> s = chr(int('10000000', 2)) + chr(int('10000000', 2)) + \
+            chr(int('10000000', 2)) +  chr(int('10000000', 2)) + \
+            chr(int('10000000', 2)) +  chr(int('10000000', 2)) + \
+            chr(int('10000000', 2)) +  chr(int('10000000', 2)) + \
+            chr(int('10000000', 2))
+    >>> _varint2int_bigendian(s)
     (9, 128)
     """
     s01 = ""
     i = 0
     for i, c in enumerate(binstr):
         byte = ord(c)
-        if i == DbFormatConfig.variantFormat["maxLen"] - 1:
+        if i == DbFormatConfig.varintFormat["maxLen"] - 1:
             s01 += "%08s" % (bin(byte)[2:])
         else:
             eff7bit = int("01111111", 2) & byte
@@ -656,7 +671,7 @@ def _variant2int_bigendian(binstr):
             if msb == 0:
                 break
     s01 = s01.replace(' ', '0')
-    return (i+1, int(s01, 2))
+    return (i + 1, int(s01, 2))
 
 
 def _getSqliteString(data):
