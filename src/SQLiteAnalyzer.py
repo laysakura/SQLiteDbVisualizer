@@ -7,6 +7,7 @@ from DbInfoTemplate import (PageType,
 import json
 
 
+
 class SQLiteAnalyzer(object):
     """
     @usage
