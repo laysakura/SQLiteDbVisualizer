@@ -249,7 +249,6 @@ class SQLiteAnalyzer(object):
                     pageNum, offset)
                 offset += payloadSizeLen
                 cellSize += payloadSizeLen
-                cellInfo["payload"]["size"] = payloadSize
 
             elif content == CellContent.RID:
                 (ridLen, rid) = self._getRidFromCell(
@@ -529,8 +528,10 @@ class SQLiteAnalyzer(object):
         for cell in firstPageCells:
             # TODO: Any case where cells of sqlite_master have overflow page?
             payload = cell["payload"]
-            payloadData = firstPageData[payload["offset"]:
-                                        payload["offset"] + payload["size"]]
+            payloadData = firstPageData[
+                payload["offset"]:
+                payload["offset"] +
+                payload["headerSize"] + payload["bodySize"]]
             btreeDict = self._fetchSqliteMasterRecord(payloadData)
             self._dbinfo["dbMetadata"]["btrees"].append(btreeDict)
 

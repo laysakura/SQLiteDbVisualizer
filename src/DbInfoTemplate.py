@@ -106,10 +106,16 @@ def get_dbinfo_template():
           #           # [TABLE_LEAF, INDEX_LEAF, INDEX_INTERIOR]
           #           "payload":  # TODO: payload contents?
           #             {
-          #               "size": None, # UINT
           #               "offset": None, # UINT
           #               "headerSize": None, # UINT
           #               "bodySize": None, # UINT
+          #               "cols": [
+          #                 {
+          #                   "stype": None,  # UINT
+          #                   "size": None,  # UINT (Got from stype)
+          #                   "content": None:  # INT is only supported.
+          #                 }
+          #               ]
           #             },
           #         },
           #         ...
