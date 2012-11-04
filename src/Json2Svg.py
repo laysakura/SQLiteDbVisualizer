@@ -15,6 +15,10 @@ class Json2Svg(object):
         self._dbinfo = json.loads(jsonStr, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
+        btreeList = self._dbinfo["dbMetadata"]["btrees"]
+        self._filteredBtreeList = [
+            btree for btree in btreeList
+            if btree["name"] in self._filterBtrees]
         self._displayRid = displayRid
 
     def initByJsonPath(self, jsonPath, svgPath,
@@ -25,6 +29,10 @@ class Json2Svg(object):
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
+        btreeList = self._dbinfo["dbMetadata"]["btrees"]
+        self._filteredBtreeList = [
+            btree for btree in btreeList
+            if btree["name"] in self._filterBtrees]
         self._displayRid = displayRid
 
     def dumpSvg(self):
@@ -56,7 +64,7 @@ class Json2Svg(object):
         # BtreeList
         self._btreeLegendHeight = SvgConfig.btreeList["legendHeight"]
         self._btreeLegendNCol = SvgConfig.btreeList["legendNCol"]
-        self._nBtree = len(self._dbinfo["dbMetadata"]["btrees"])
+        self._nBtree = len(self._filteredBtreeList)
         self._btreeLegendNRow = self._nBtree / self._btreeLegendNCol + 1
         self._btreeListWidth = SvgConfig.page["width"]
         self._btreeListHeight = self._btreeLegendHeight * self._btreeLegendNRow
@@ -75,9 +83,8 @@ class Json2Svg(object):
                                 self._dbinfo["dbMetadata"]["nPages"])
 
     def _setBtreeColorDict(self):
-        btreeList = self._dbinfo["dbMetadata"]["btrees"]
         self._btreeColorDict = {}
-        for i, btree in enumerate(btreeList):
+        for i, btree in enumerate(self._filteredBtreeList):
             colorPalette = SvgConfig.btreeColorPalette
             self._btreeColorDict[btree["name"]] = colorPalette[
                 i % len(colorPalette)]
@@ -106,8 +113,7 @@ class Json2Svg(object):
                 nDrawnPage += 1
 
     def _drawBtreeList(self, x, y):
-        btreeList = self._dbinfo["dbMetadata"]["btrees"]
-        for i, btree in enumerate(btreeList):
+        for i, btree in enumerate(self._filteredBtreeList):
             legendX = x + self._btreeLegendWidth * (i % self._btreeLegendNCol)
             legendY = y + self._btreeLegendHeight * (i / self._btreeLegendNCol)
             self._drawBtreeLegend(legendX, legendY, btree)
