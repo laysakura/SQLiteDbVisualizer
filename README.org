@@ -39,7 +39,8 @@ $ sqlite-visualizer svg -h
 
 * Requirements
   - Python (checked with v2.7.2)
-  - SQLite database (checked with v3.7.14)
+  - sqlite3 python module
+  - SQLite3 database (checked with v3.7.14)
   - PySVG
     - http://code.google.com/p/pysvg/
 
@@ -78,7 +79,7 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
     2. Check if b-tree header flag is either of 0x0D, 0x0A, 0x02, or 0x05.
     3. Check if both offset to first free-block and offset to cell content area are
        between b-tree header length (= 8 or 12) and page size, or 0.
-    4. Check if cell count is between 1 and (page size) / (minimum cell length (= 5))
+    4. Check if cell count is between 0 and (page size) / (minimum cell length (= 5))
 
 *** Overflow page
     A cell with large payload cell can have a link to overflow page.

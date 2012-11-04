@@ -4,6 +4,7 @@ from DbInfoTemplate import (PageType,
                             CellContent,
                             get_dbinfo_template)
 import json
+import sqlite3
 
 
 class SQLiteAnalyzer(object):
@@ -96,13 +97,14 @@ class SQLiteAnalyzer(object):
                          PageType.TABLE_LEAF, PageType.TABLE_INTERIOR):
             CPAFormat = DbFormatConfig.cellPointerArrayFormat
             cell_pointer_array_offset = None
-            if pageNum == 1:
-                cell_pointer_array_offset = CPAFormat["offsetInPage1"]
-            elif page_type in (PageType.INDEX_LEAF, PageType.TABLE_LEAF):
+            if page_type in (PageType.INDEX_LEAF, PageType.TABLE_LEAF):
                 cell_pointer_array_offset = CPAFormat["offsetInLeafPage"]
             elif page_type in (PageType.INDEX_INTERIOR,
                                PageType.TABLE_INTERIOR):
                 cell_pointer_array_offset = CPAFormat["offsetInInteriorPage"]
+            if pageNum == 1:
+                dbHLen = DbFormatConfig.dbHeaderFormat["len"]
+                cell_pointer_array_offset += dbHLen
 
             self._read_cells(pageNum,
                              page_type,
@@ -177,7 +179,7 @@ class SQLiteAnalyzer(object):
              free_block_offset == 0) and
             (btHLen <= cell_content_area_offset <= page_size or
              cell_content_area_offset == 0) and
-            1 <= n_cells <= page_size / min_cell_len):
+            0 <= n_cells <= page_size / min_cell_len):
 
             this_page["pageMetadata"] = {
                 "pageType": page_type,
@@ -481,7 +483,6 @@ class SQLiteAnalyzer(object):
     def _mapBtreeAndPage(self):
         self._listBtrees()  # Set self._dbinfo["dbMetadata"]["btrees"]
         self._markBtreePages()
-        self._addSqliteMasterToBtreeList()
 
     def _addSqliteMasterToBtreeList(self):
         # Add sqlite_master btree info
@@ -489,6 +490,7 @@ class SQLiteAnalyzer(object):
             "type": BtreeType.TABLE,
             "name": DbFormatConfig.sqlite_master["tableName"],
             "tableName": DbFormatConfig.sqlite_master["tableName"],
+            "rootPage": 1,
         })
 
     def _markBtreePages(self):
@@ -510,6 +512,7 @@ class SQLiteAnalyzer(object):
         pageType = pageMetadata["pageType"]
         if pageType in (PageType.INDEX_LEAF, PageType.TABLE_LEAF):
             return
+        assert pageType in (PageType.INDEX_INTERIOR, PageType.TABLE_INTERIOR)
         cells = self._dbinfo["pages"][pageNum]["cells"]
         for cell in cells:
             self._markBtreePagesByTraversingRec(
@@ -520,42 +523,14 @@ class SQLiteAnalyzer(object):
 
     def _listBtrees(self):
         """
-        @note
-        sqlite_master itself is not listed by this function.
+        @TODO
+        Support other database encoding
         """
-        firstPageData = self._get_page_data(1)
-        firstPageCells = self._dbinfo["pages"][1]["cells"]
-        for cell in firstPageCells:
-            # TODO: Any case where cells of sqlite_master have overflow page?
-            payload = cell["payload"]
-            payloadData = firstPageData[
-                payload["offset"]:
-                payload["offset"] +
-                payload["headerSize"] + payload["bodySize"]]
-            btreeDict = self._fetchSqliteMasterRecord(payloadData)
-            self._dbinfo["dbMetadata"]["btrees"].append(btreeDict)
+        conn = sqlite3.connect(self._dbpath)
+        cursor = conn.cursor()
 
-    def _fetchSqliteMasterRecord(self, payloadData):
-        """
-        Only intent to:
-        - string in UTF-8  # TODO: Support other database encoding
-        - varint
-        """
-        payloadFormat = DbFormatConfig.payloadFormat
-        varintMaxLen = DbFormatConfig.varintFormat["maxLen"]
-
-        # TODO: Copied from _getWholePayloadSize.
-        #   Remove redundancy
-        # Read header size
-        headerSizeVarint = payloadData[
-            payloadFormat["headerSizeOffset"]:
-            payloadFormat["headerSizeOffset"] + varintMaxLen]
-        (headerSizeLen, headerSize) = _varint2int_bigendian(headerSizeVarint)
-
-        # Read serial type in header and calculate bodySize
-        stypeOffset = headerSizeLen
-        valueOffset = headerSize
-
+        btrees = self._dbinfo["dbMetadata"]["btrees"]
+        cursor.execute("select * from sqlite_master")
         # sqlite_master format:
         # CREATE TABLE sqlite_master (
         #   type text,
@@ -563,38 +538,18 @@ class SQLiteAnalyzer(object):
         #   tbl_name text,
         #   rootpage integer,
         #   sql text);
-        ret = {}
-        for iCol in range(4):  # Read until rootpage
-            stypeVarint = payloadData[stypeOffset:
-                                       stypeOffset + varintMaxLen]
-            (stypeLen, stype) = _varint2int_bigendian(stypeVarint)
-            stypeOffset += stypeLen
+        for row in cursor:
+            btrees.append({
+                "type": row[0],
+                "name": row[1],
+                "tableName": row[2],
+                "rootPage": int(row[3]),
+            })
 
-            # get valueData
-            valueSize = DbFormatConfig.serialType2ContentSize(stype)
-            valueData = payloadData[valueOffset:
-                                    valueOffset + valueSize]
-            valueOffset += valueSize
+        cursor.close()
+        conn.close()
 
-            if iCol == 0:
-                s = _getSqliteString(valueData)
-                if s == "table":
-                    ret["type"] = BtreeType.TABLE
-                elif s == "index":
-                    ret["type"] = BtreeType.INDEX
-                else:
-                    assert False
-            elif iCol == 1:
-                s = _getSqliteString(valueData)
-                ret["name"] = s
-            elif iCol == 2:
-                s = _getSqliteString(valueData)
-                ret["tableName"] = s
-            elif iCol == 3:
-                (rootPageLen, rootPage) = _varint2int_bigendian(valueData)
-                ret["rootPage"] = rootPage
-
-        return ret
+        self._addSqliteMasterToBtreeList()
 
 
 def _btree_header_flag_TO_PageType(btree_header_flag):

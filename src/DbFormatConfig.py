@@ -41,7 +41,7 @@ btreeHeaderFormat = {
     "tableLeafPageFlag": 0x0D,
 
     "firstPageLivingBtreeStr": "sqlite_master",
-    "uncertainLivingBtreeStr": "????",
+    "uncertainLivingBtreeStr": "??UNCERTAIN PAGE??",
 }
 
 sqlite_master = {
@@ -49,8 +49,6 @@ sqlite_master = {
 }
 
 cellPointerArrayFormat = {
-    "offsetInPage1": (btreeHeaderFormat["offsetInPage1"] +
-                      btreeHeaderFormat["leafLen"]),
     "offsetInLeafPage": (btreeHeaderFormat["offsetInPage"] +
                          btreeHeaderFormat["leafLen"]),
     "offsetInInteriorPage": (btreeHeaderFormat["offsetInPage"] +

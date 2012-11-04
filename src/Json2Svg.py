@@ -44,7 +44,9 @@ class Json2Svg(object):
                            self._pageListY)
 
     def _postDraw(self):
-        self._svgDoc.save(self._svgPath)
+        self._svgDoc.save(
+            self._svgPath,
+            encoding=SvgConfig.main["encoding"])
 
     def _prepPysvgObj(self):
         self._svgDoc = pysvg.structure.svg()
@@ -125,7 +127,7 @@ class Json2Svg(object):
         style = pysvg.builders.StyleBuilder()
         style.setFontSize(SvgConfig.btreeList["legendFontSize"])
         self._svgDoc.addElement(
-            pysvg.text.text(btree["name"],
+            pysvg.text.text(btree["name"].encode(SvgConfig.main["encoding"]),
                             x=x + SvgConfig.btreeList["legendHeight"],
                             y=y + SvgConfig.btreeList["legendTopMargin"],
                             style=style.getStyle()))

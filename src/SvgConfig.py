@@ -1,6 +1,10 @@
 from DbInfoTemplate import PageType
 
 
+main = {
+    "encoding": "utf-8",
+}
+
 page = {
     "width": 512,
 
