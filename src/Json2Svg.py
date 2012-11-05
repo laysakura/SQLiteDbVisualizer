@@ -11,29 +11,39 @@ class Json2Svg(object):
     def initByJsonStr(self, jsonStr, svgPath,
                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
                       filterBtrees=[],
-                      displayRid=False):
+                      displayRid=False,
+                      longshot=False):
         self._dbinfo = json.loads(jsonStr, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
-        btreeList = self._dbinfo["dbMetadata"]["btrees"]
-        self._filteredBtreeList = [
-            btree for btree in btreeList
-            if btree["name"] in self._filterBtrees]
         self._displayRid = displayRid
+        self._longshot = longshot
+        self._initCommons()
 
     def initByJsonPath(self, jsonPath, svgPath,
                        jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
                        filterBtrees=[],
-                       displayRid=False):
+                       displayRid=False,
+                       longshot=False):
         with open(jsonPath) as f_json:
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
-        btreeList = self._dbinfo["dbMetadata"]["btrees"]
-        self._filteredBtreeList = [
-            btree for btree in btreeList
-            if btree["name"] in self._filterBtrees]
         self._displayRid = displayRid
+        self._longshot = longshot
+        self._initCommons()
+
+    def _initCommons(self):
+        assert self._displayRid ^ self._longshot
+        btreeList = self._dbinfo["dbMetadata"]["btrees"]
+
+        if len(self._filterBtrees) > 0:
+            print("surprise")
+            self._filteredBtreeList = [
+                btree for btree in btreeList
+                if btree["name"] in self._filterBtrees]
+        else:
+            self._filteredBtreeList = btreeList
 
     def dumpSvg(self):
         self._preDraw()
@@ -42,14 +52,23 @@ class Json2Svg(object):
 
     def _preDraw(self):
         self._prepPysvgObj()
-        self._setDrawParam()
+        if self._longshot:
+            self._setDrawParamLongshot()
+        else:
+            self._setDrawParam()
         self._setBtreeColorDict()
 
     def _draw(self):
-        self._drawBtreeList(SvgConfig.btreeList["x"],
-                            SvgConfig.btreeList["y"])
-        self._drawPageList(SvgConfig.pageList["x"],
-                           self._pageListY)
+        if self._longshot:
+            self._drawBtreeList(SvgConfig.btreeList["x"],
+                                SvgConfig.btreeList["y"])
+            self._drawPageListLongshot(SvgConfig.pageList["x"],
+                                       self._pageListY)
+        else:
+            self._drawBtreeList(SvgConfig.btreeList["x"],
+                                SvgConfig.btreeList["y"])
+            self._drawPageList(SvgConfig.pageList["x"],
+                               self._pageListY)
 
     def _postDraw(self):
         self._svgDoc.save(
@@ -82,6 +101,20 @@ class Json2Svg(object):
         self._pageListHeight = (self._pageHeight *
                                 self._dbinfo["dbMetadata"]["nPages"])
 
+    def _setDrawParamLongshot(self):
+        # BtreeList
+        self._btreeLegendHeight = SvgConfig.btreeList["legendHeight"]
+        self._btreeLegendNCol = SvgConfig.btreeList["legendNCol"]
+        self._nBtree = len(self._filteredBtreeList)
+        self._btreeLegendNRow = self._nBtree / self._btreeLegendNCol + 1
+        self._btreeListWidth = (SvgConfig.pageListLongshot["nCols"] *
+                                SvgConfig.pageLongshot["size"])
+        self._btreeListHeight = self._btreeLegendHeight * self._btreeLegendNRow
+        self._btreeLegendWidth = self._btreeListWidth / self._btreeLegendNCol
+
+        # PageList
+        self._pageListY = SvgConfig.btreeList["y"] + self._btreeListHeight
+
     def _setBtreeColorDict(self):
         self._btreeColorDict = {}
         for i, btree in enumerate(self._filteredBtreeList):
@@ -89,19 +122,21 @@ class Json2Svg(object):
             self._btreeColorDict[btree["name"]] = colorPalette[
                 i % len(colorPalette)]
 
+    def _isFilteredBtreePage(self, pageNum):
+        pageMetadata = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]
+        isBtreePage = (pageMetadata["pageType"] in (
+                           PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
+                           PageType.TABLE_LEAF, PageType.TABLE_INTERIOR))
+        isFiltered = (self._filterBtrees == [] or
+                      (self._filterBtrees != [] and
+                       pageMetadata["livingBtree"] in self._filterBtrees))
+        return isBtreePage & isFiltered
+
     def _drawPageList(self, x, y):
         nDrawnPage = 0
         for pageNum in range(1, self._dbinfo["dbMetadata"]["nPages"] + 1):
-            pageMetadata = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]
-
             # Filter pages to draw
-            if (self._filterBtrees == [] or
-                (self._filterBtrees != [] and
-                 pageMetadata["pageType"] in (
-                        PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
-                        PageType.TABLE_LEAF, PageType.TABLE_INTERIOR) and
-                 pageMetadata["livingBtree"] in self._filterBtrees)):
-
+            if self._isFilteredBtreePage(pageNum):
                 self._drawPage(
                     x,
                     y + nDrawnPage * self._pageHeight,
@@ -111,6 +146,33 @@ class Json2Svg(object):
                     y + nDrawnPage * self._pageHeight,
                     pageNum)
                 nDrawnPage += 1
+
+    def _drawPageListLongshot(self, x, y):
+        offsetX = 0
+        offsetY = 0
+        for pageNum in range(1, self._dbinfo["dbMetadata"]["nPages"] + 1):
+            pageMetadata = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]
+            pageType = pageMetadata["pageType"]
+
+            # color
+            fillColor = SvgConfig.pageLongshot["defaultColor"]
+            if self._isFilteredBtreePage(pageNum):
+                fillColor = self._btreeColorDict[pageMetadata["livingBtree"]]
+
+            # offset
+            pageSize = SvgConfig.pageLongshot["size"]
+            nCols = SvgConfig.pageListLongshot["nCols"]
+            offsetX = pageSize * ((pageNum - 1) % nCols)
+            offsetY = pageSize * ((pageNum - 1) / nCols)
+
+            self._svgDoc.addElement(
+                self._shapeBuilder.createRect(
+                    x + offsetX, y + offsetY,
+                    SvgConfig.btreeList["legendHeight"] - 1,
+                    SvgConfig.btreeList["legendHeight"] - 1,
+                    fill=fillColor,
+                    strokewidth=SvgConfig.pageLongshot["strokeWidth"],
+                    stroke=SvgConfig.page[pageType + "strokeColor"]))
 
     def _drawBtreeList(self, x, y):
         for i, btree in enumerate(self._filteredBtreeList):

@@ -184,6 +184,19 @@ pageList = {  # Top element
     "pageNumTopMargin": 4,
 }
 
+pageListLongshot = {  # Top element
+    "x": 0,
+    "yPadFromBtreeList": 0,
+
+    "nCols": 100,
+}
+
+pageLongshot = {
+    "size": 4,
+    "defaultColor": "white",
+    "strokeWidth": 1,
+}
+
 cell = {
     "height": 4,
 }

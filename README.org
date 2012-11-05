@@ -65,8 +65,7 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
   - Only UTF-8 is supported as TEXT encoding (easily fixed)
   - Not suitable for quite large databases mainly because SVG is
     not so good format to visualize large images.
-    A kind of sophisticated GUI might be a good solution for large databases.
-    Hope some implementation making use of pluggable visualizer unit :D
+    But you can convert SVG image into other luster formats (lighter to show) like PNG.
 
 * Methodology
   SQLiteDbVisualizer is written carefully referring to http://www.sqlite.org/fileformat2.html .

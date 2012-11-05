@@ -17,6 +17,7 @@ def parse_subcommands():
     # create subcommand parsers
     create_parser_json(subparsers)
     create_parser_svg(subparsers)
+    create_parser_longshot_svg(subparsers)
 
     # parse the args and call whatever function was selected
     args = parser.parse_args(sys.argv[1:])
@@ -69,6 +70,32 @@ def create_parser_svg(subparsers):
         action='store_true',
         help="Whether to display RID for each table page")
 
+def create_parser_longshot_svg(subparsers):
+    parser_longshot_svg = subparsers.add_parser(
+        "longshot-svg",
+        description=(
+"""Analyze SQLite DB and output the result in SVG (vector image) format.
+Unlike `svg', this command only shows long-shot view in which only page-level
+information is provided."""
+),
+        )
+    parser_longshot_svg.set_defaults(func=output_dbinfo_longshot_svg)
+
+    parser_longshot_svg.add_argument(
+        "dbPath",
+        help="SQLite DB path")
+    parser_longshot_svg.add_argument(
+        "svgPath",
+        help="Output SVG path")
+    parser_longshot_svg.add_argument(
+        "--jsonPath",
+        default=None,
+        help="Path to intermediate DB info JSON")
+    parser_longshot_svg.add_argument(
+        "--filterBtrees",
+        default=[],
+        nargs='+',
+        help="List of B-tree (table or index) name to focus. Only pages in this b-tree are displayed.")
 
 def output_dbinfo_json(args):
     analyzer = SQLiteAnalyzer(args.dbPath)
@@ -92,6 +119,20 @@ def output_dbinfo_svg(args):
                                 displayRid=args.displayRid)
     json2Svg.dumpSvg()
 
+def output_dbinfo_longshot_svg(args):
+    analyzer = SQLiteAnalyzer(args.dbPath)
+    json2Svg = Json2Svg()
+    if args.jsonPath is None:
+        jsonStr = analyzer.getJson()
+        json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath,
+                               filterBtrees=args.filterBtrees,
+                               longshot=True)
+    else:
+        analyzer.dumpJson(outPath=args.jsonPath)
+        json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath,
+                                filterBtrees=args.filterBtrees,
+                                longshot=True)
+    json2Svg.dumpSvg()
 
 def main():
     parse_subcommands()
