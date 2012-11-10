@@ -539,6 +539,11 @@ class SQLiteAnalyzer(object):
         #   rootpage integer,
         #   sql text);
         for row in cursor:
+            if int(row[3]) == 0:
+                # Assuming the btree is VIRTUAL TABLE
+                # TODO: is it really OK to asume rootPage=0
+                # always mean VIRTUAL TABLE?
+                continue
             btrees.append({
                 "type": row[0],
                 "name": row[1],

@@ -34,11 +34,10 @@ class Json2Svg(object):
         self._initCommons()
 
     def _initCommons(self):
-        assert self._displayRid ^ self._longshot
+        assert not (self._displayRid and self._longshot)
         btreeList = self._dbinfo["dbMetadata"]["btrees"]
 
         if len(self._filterBtrees) > 0:
-            print("surprise")
             self._filteredBtreeList = [
                 btree for btree in btreeList
                 if btree["name"] in self._filterBtrees]
