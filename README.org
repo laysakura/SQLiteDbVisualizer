@@ -125,3 +125,7 @@ $ sqlite-visualizer svg foobar.db foobar.svg --filterBtrees T0 T0_idx  # Show on
    (Strictly speaking, a left child is held by a cell and the rightmost child is held by b-tree header.)
 
    Give the b-tree name to each b-tree page while traversal.
+
+* TODO
+  - Need to check freelist (trunk|leaf) pages since freelist leaf pages has
+    the same contents as before freed.

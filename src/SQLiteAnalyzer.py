@@ -47,7 +47,7 @@ class SQLiteAnalyzer(object):
     def _read_db_metadata(self):
         hFormat = DbFormatConfig.dbHeaderFormat
 
-        # Correct binstr from dbdata
+        # Collect binstr from dbdata
         db_header_binstr = self._dbdata[
             hFormat["offsetInFile"]:
             hFormat["len"]]
@@ -57,6 +57,13 @@ class SQLiteAnalyzer(object):
         reserved_space_binstr = db_header_binstr[
             hFormat["reservedSpaceOffset"]:
             hFormat["reservedSpaceOffset"] + hFormat["reservedSpaceLen"]]
+        freelist_trunk_head_binstr = db_header_binstr[
+            hFormat["freelistTrunkHeadOffset"]:
+            hFormat["freelistTrunkHeadOffset"] +
+            hFormat["freelistTrunkHeadLen"]]
+        n_freelist_pages_binstr = db_header_binstr[
+            hFormat["nFreelistPagesOffset"]:
+            hFormat["nFreelistPagesOffset"] + hFormat["nFreelistPagesLen"]]
 
         # Set metadata into dbinfo
         dbMdata = self._dbinfo["dbMetadata"]
@@ -64,17 +71,89 @@ class SQLiteAnalyzer(object):
         dbMdata["nPages"] = len(self._dbdata) / dbMdata["pageSize"]
         dbMdata["usablePageSize"] = (
             dbMdata["pageSize"] - _binstr2int_bigendian(reserved_space_binstr))
+        dbMdata["freelistTrunkHead"] = _binstr2int_bigendian(
+            freelist_trunk_head_binstr)
+        dbMdata["nFreelistPages"] = _binstr2int_bigendian(
+            n_freelist_pages_binstr)
 
     def _read_db_pages(self):
+        # Read freelist pages first to prevent meaningless page analysis
+        self._read_freelist_pages()
+
         # Read pages
         p_cnt = self._dbinfo["dbMetadata"]["nPages"]
         for pageNum in range(1, p_cnt + 1):
+            # (skip freelist pages)
+            if (pageNum in self._dbinfo["pages"] and
+                "pageMetadata" in self._dbinfo["pages"][pageNum] and
+                self._dbinfo["pages"][pageNum]["pageMetadata"]["pageType"] in (
+                    PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF)):
+                continue
+
             self._read_page(pageNum)
 
     def _get_page_data(self, pageNum):
         page_size = self._dbinfo["dbMetadata"]["pageSize"]
         page_offset = page_size * (pageNum - 1)
         return self._dbdata[page_offset:page_offset + page_size]
+
+    def _read_freelist_pages(self):
+        pages = self._dbinfo["pages"]
+        next_trunk = self._dbinfo["dbMetadata"]["freelistTrunkHead"]
+        pages[next_trunk] = {}
+        pages[next_trunk]["pageType"] = PageType.FREELIST_TRUNK
+        while isinstance(next_trunk, int) and next_trunk > 0:
+            next_trunk = self._read_freelist_trunk_page_and_its_leaves(
+                next_trunk)
+            pages[next_trunk] = {
+                "pageMetadata": {
+                    "pageType": PageType.FREELIST_TRUNK,
+                }
+            }
+
+    def _read_freelist_trunk_page_and_its_leaves(self, page_num):
+        page_data = self._get_page_data(page_num)
+        trunk_pg_format = DbFormatConfig.freelistTrunkPageFormat
+
+        # Find next freelist trunk page number
+        next_trunk_page_offset = trunk_pg_format["nextTrunkPageOffset"]
+        next_trunk_page_binstr = page_data[
+            next_trunk_page_offset:
+            next_trunk_page_offset + trunk_pg_format["nextTrunkPageLen"]]
+        next_trunk_page = _binstr2int_bigendian(next_trunk_page_binstr)
+
+        # Find the number of freelist leaf page this trunk page has
+        n_leaves_offset = trunk_pg_format["nLeavesOffset"]
+        n_leaves_binstr = page_data[
+            n_leaves_offset:
+            n_leaves_offset + trunk_pg_format["nLeavesLen"]]
+        n_leaves = _binstr2int_bigendian(n_leaves_binstr)
+
+        # Set pageMetadata
+        self._dbinfo["pages"][page_num]["pageMetadata"] = {
+            "pageType": PageType.FREELIST_TRUNK,
+            "nextFreelistTrunkPageNum": next_trunk_page,
+            "nFreelistLeaves": n_leaves,
+        }
+
+        # Find all freelist leaf pages which belongs to this trunk
+        self._dbinfo["pages"][page_num]["freelistLeafPageNums"] = []
+        leaves = self._dbinfo["pages"][page_num]["freelistLeafPageNums"] = []
+        leaves = self._dbinfo["pages"][page_num]["freelistLeafPageNums"]
+        offset = trunk_pg_format["firstLeafPageNumOffset"]
+        for i in range(n_leaves):
+            leaf_num_binstr = page_data[
+                offset:offset + trunk_pg_format["leafPageNumLen"]]
+            leaf_num = _binstr2int_bigendian(leaf_num_binstr)
+            leaves.append(leaf_num)
+            self._dbinfo["pages"][leaf_num] = {
+                "pageMetadata": {
+                    "pageType": PageType.FREELIST_LEAF,
+                }
+            }
+            offset += trunk_pg_format["leafPageNumLen"]
+
+        return next_trunk_page
 
     def _read_page(self, pageNum):
         # Possibly page[pageNum] is already read (ex: overflow page)

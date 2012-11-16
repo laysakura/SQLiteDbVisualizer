@@ -10,10 +10,18 @@ main = {
 dbHeaderFormat = {
     "offsetInFile": 0,
     "len": 100,
+
     "pageSizeOffset": 16,
     "pageSizeLen": 2,
+
     "reservedSpaceOffset": 20,
     "reservedSpaceLen": 1,
+
+    "freelistTrunkHeadOffset": 32,
+    "freelistTrunkHeadLen": 4,
+
+    "nFreelistPagesOffset": 36,
+    "nFreelistPagesLen": 4,
 }
 
 btreeHeaderFormat = {
@@ -82,6 +90,17 @@ overflowPageFormat = {
 
 varintFormat = {
     "maxLen": 9,
+}
+
+freelistTrunkPageFormat = {
+    "nextTrunkPageOffset": 0,
+    "nextTrunkPageLen": 4,
+
+    "nLeavesOffset": 4,
+    "nLeavesLen": 4,
+
+    "firstLeafPageNumOffset": 8,
+    "leafPageNumLen": 4,
 }
 
 

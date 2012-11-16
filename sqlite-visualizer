@@ -69,6 +69,11 @@ def create_parser_svg(subparsers):
         default=False,
         action='store_true',
         help="Whether to display RID for each table page")
+    parser_svg.add_argument(
+        "--displayFreelistPages",
+        default=True,
+        action='store_true',
+        help="Whether to display freelist (trunk|leaf) pages")
 
 def create_parser_longshot_svg(subparsers):
     parser_longshot_svg = subparsers.add_parser(
@@ -111,12 +116,14 @@ def output_dbinfo_svg(args):
         jsonStr = analyzer.getJson()
         json2Svg.initByJsonStr(jsonStr=jsonStr, svgPath=args.svgPath,
                                filterBtrees=args.filterBtrees,
-                               displayRid=args.displayRid)
+                               displayRid=args.displayRid,
+                               displayFreelistPages=args.displayFreelistPages)
     else:
         analyzer.dumpJson(outPath=args.jsonPath)
         json2Svg.initByJsonPath(jsonPath=args.jsonPath, svgPath=args.svgPath,
                                 filterBtrees=args.filterBtrees,
-                                displayRid=args.displayRid)
+                                displayRid=args.displayRid,
+                                displayFreelistPages=args.displayFreelistPages)
     json2Svg.dumpSvg()
 
 def output_dbinfo_longshot_svg(args):

@@ -12,11 +12,13 @@ class Json2Svg(object):
                       jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
                       filterBtrees=[],
                       displayRid=False,
+                      displayFreelistPages=True,
                       longshot=False):
         self._dbinfo = json.loads(jsonStr, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
         self._displayRid = displayRid
+        self._displayFreelistPages = displayFreelistPages
         self._longshot = longshot
         self._initCommons()
 
@@ -24,12 +26,14 @@ class Json2Svg(object):
                        jsonEncoding=DbFormatConfig.main["dbInfoJsonEncoding"],
                        filterBtrees=[],
                        displayRid=False,
+                       displayFreelistPages=True,
                        longshot=False):
         with open(jsonPath) as f_json:
             self._dbinfo = json.load(f_json, jsonEncoding)
         self._svgPath = svgPath
         self._filterBtrees = filterBtrees
         self._displayRid = displayRid
+        self._displayFreelistPages = displayFreelistPages
         self._longshot = longshot
         self._initCommons()
 
@@ -131,11 +135,20 @@ class Json2Svg(object):
                        pageMetadata["livingBtree"] in self._filterBtrees))
         return isBtreePage & isFiltered
 
+    def _isFreelistPageToDisplay(self, pageNum):
+        pageMetadata = self._dbinfo["pages"][str(pageNum)]["pageMetadata"]
+        return (
+            self._displayFreelistPages == True and
+            pageMetadata["pageType"] in (
+                PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF)
+        )
+
     def _drawPageList(self, x, y):
         nDrawnPage = 0
         for pageNum in range(1, self._dbinfo["dbMetadata"]["nPages"] + 1):
             # Filter pages to draw
-            if self._isFilteredBtreePage(pageNum):
+            if (self._isFilteredBtreePage(pageNum) or
+                self._isFreelistPageToDisplay(pageNum)):
                 self._drawPage(
                     x,
                     y + nDrawnPage * self._pageHeight,
@@ -209,7 +222,16 @@ class Json2Svg(object):
                 fill=SvgConfig.page["fillColor"],
                 strokewidth=SvgConfig.page["strokeWidth"],
                 stroke=SvgConfig.page[pageType + "strokeColor"]))
-        self._drawCells(x, y, pageNum)
+
+        # Draw inside of pages
+        if pageType in (
+            PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
+            PageType.TABLE_LEAF, PageType.TABLE_INTERIOR,
+            PageType.OVERFLOW):
+            self._drawCells(x, y, pageNum)
+        elif pageType == PageType.FREELIST_TRUNK:
+            # TODO: Draw freelist trunk page contents
+            pass
 
     def _drawPageNum(self, x, y, pageNum):
         style = pysvg.builders.StyleBuilder()

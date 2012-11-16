@@ -13,6 +13,8 @@ class PageType:
     INDEX_INTERIOR = "index interior page"
     INDEX_LEAF = "index leaf page"
     OVERFLOW = "overflow page"
+    FREELIST_TRUNK = "freelist trunk page"
+    FREELIST_LEAF = "freelist leaf page"
     UNCERTAIN = "uncertain page"
 
 
@@ -49,16 +51,24 @@ def get_dbinfo_template():
               #   "rootPage": 8
               # },
               # ...
-            ]
+            ],
+          "freelistTrunkHead": None,  # UINT
+          "nFreelistPages": None,  # UINT
         },
       "pages":
         {
           # 1:  # Pages are read not always sequentially (ex: overflow page)
           #   {
+          #     # [TABLE_LEAF, TABLE_INTERIOR,
+          #     #  INDEX_LEAF, INDEX_INTERIOR,
+          #     #  OVERFLOW,
+          #     #  FREELIST_TRUNK]
           #     "pageMetadata":
           #       {
           #         # [TABLE_LEAF, TABLE_INTERIOR,
-          #         #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
+          #         #  INDEX_LEAF, INDEX_INTERIOR,
+          #         #  OVERFLOW,
+          #         #  FREELIST_TRUNK, FREELIST_LEAF]
           #         "pageType": PageType.TABLE_LEAF,
           #
           #         # [TABLE_LEAF, TABLE_INTERIOR,
@@ -80,9 +90,16 @@ def get_dbinfo_template():
           #
           #         # [TABLE_INTERIOR, INDEX_INTERIOR]
           #         "rightmostChildPageNum": None, # UINT
+          #
+          #         # [FREELIST_TRUNK]
+          #         # "nextFreelistTrunkPageNum": None,  # UINT
+          #
+          #         # [FREELIST_TRUNK]
+          #         # "nFreelistLeaves": None,  # UINT
           #       }
           #
-          #     # Table leaf example:
+          #     # [TABLE_LEAF, TABLE_INTERIOR,
+          #     #  INDEX_LEAF, INDEX_INTERIOR, OVERFLOW]
           #     "cells":
           #       [
           #         {
@@ -120,6 +137,8 @@ def get_dbinfo_template():
           #         },
           #         ...
           #       ]
+          #     # [FREELIST_TRUNK]
+          #     "freelistLeafPageNums": [3, 4, 8, ...],  # Leaf page num
           #   },
           # 2:
           #   ...
