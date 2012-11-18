@@ -201,4 +201,6 @@ pageLongshot = {
 
 cell = {
     "height": 4,
+
+    "ridFontSize": 2,
 }

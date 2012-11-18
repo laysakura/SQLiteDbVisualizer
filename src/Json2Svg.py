@@ -284,7 +284,7 @@ class Json2Svg(object):
 
     def _drawRid(self, x, y, rid, pageType):
         style = pysvg.builders.StyleBuilder()
-        style.setFontSize(self._cellHeight)
+        style.setFontSize(SvgConfig.cell["ridFontSize"])
         s = str(rid)
         self._svgDoc.addElement(
             pysvg.text.text(
