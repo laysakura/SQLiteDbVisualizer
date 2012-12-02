@@ -130,7 +130,7 @@ class SQLiteAnalyzer(object):
         """
         assert(self._preallocDb)
         [self._read_freelist_pages_aux(iTrunkHead)
-         for iTrunkHead in self._get_freelist_trunks_from_map()]
+         for iTrunkHead in self._get_freelist_trunk_heads_from_map()]
 
     def _read_freelist_pages_aux(self, iTrunkHead):
         assert(iTrunkHead > 0)
@@ -198,12 +198,12 @@ class SQLiteAnalyzer(object):
                                 hFormat["freelistMapHeadLen"]]
         return _binstr2int_bigendian(iMapPage_binstr)
 
-    def _get_freelist_trunks_from_map(self):
+    def _get_freelist_trunk_heads_from_map(self):
         assert(self._preallocDb)
 
         iMapHead = self._get_freelist_map_page_num()
         iMap = iMapHead
-        aiTrunk = []
+        aiTrunkHeads = []
         while iMap > 0:
             aMap = self._get_page_data(iMap)
 
@@ -218,24 +218,25 @@ class SQLiteAnalyzer(object):
             iNextMap_binstr = aMap[0:4]
             iNextMap = _binstr2int_bigendian(iNextMap_binstr)
 
-            nTrunk_binstr = aMap[4:8]
-            nTrunk = _binstr2int_bigendian(nTrunk_binstr)
+            nBtree_binstr = aMap[4:8]
+            nBtree = _binstr2int_bigendian(nBtree_binstr)
 
             # Get trunk page nums
-            for i in range(nTrunk):
+            for i in range(nBtree):
                 pageSize = self._dbinfo["dbMetadata"]["pageSize"]
                 lenFreelistMapKey = 4
                 lenFreelistMapVal = 8
                 nMaxTrunk = int((pageSize - 8) / (lenFreelistMapVal + 4))
                 offset = (8 + lenFreelistMapKey * nMaxTrunk +
                           lenFreelistMapVal * i)
-                iTrunk_binstr = aMap[offset: offset + 4]
-                iTrunk = _binstr2int_bigendian(iTrunk_binstr)
-                aiTrunk.append(iTrunk)
+                iTrunkHead_binstr = aMap[offset: offset + 4]
+                iTrunkHead = _binstr2int_bigendian(iTrunkHead_binstr)
+                if iTrunkHead > 0:
+                    aiTrunkHeads.append(iTrunkHead)
 
             iMap = iNextMap
 
-        return aiTrunk
+        return aiTrunkHeads
 
     def _read_page(self, pageNum):
         # Possibly page[pageNum] is already read (ex: overflow page)
