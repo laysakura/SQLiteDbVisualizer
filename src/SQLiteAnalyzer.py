@@ -9,12 +9,16 @@ import sqlite3
 
 class SQLiteAnalyzer(object):
     """
+    @param preallocDb  True when analyzing DB created by prealloc SQLite.
+
     @usage
     analyzer = SQLiteAnalyzer('/path/to/db.sqlite')
     analyzer.dumpJson(outPath='/path/to/dbinfo.json')
     """
-    def __init__(self, dbpath):
+    def __init__(self, dbpath, preallocDb=False):
         self._dbpath = dbpath
+        self._preallocDb = preallocDb
+
         self._dbdata = self._get_dbdata()
         self._dbinfo = get_dbinfo_template()
         self._read_db()
@@ -47,34 +51,46 @@ class SQLiteAnalyzer(object):
     def _read_db_metadata(self):
         hFormat = DbFormatConfig.dbHeaderFormat
 
-        # Collect binstr from dbdata
+        # Set metadata into dbinfo
+        dbMdata = self._dbinfo["dbMetadata"]
+
         db_header_binstr = self._dbdata[
             hFormat["offsetInFile"]:
             hFormat["len"]]
         page_size_binstr = db_header_binstr[
             hFormat["pageSizeOffset"]:
             hFormat["pageSizeOffset"] + hFormat["pageSizeLen"]]
+        dbMdata["pageSize"] = _binstr2int_bigendian(page_size_binstr)
+
+        dbMdata["nPages"] = len(self._dbdata) / dbMdata["pageSize"]
+
         reserved_space_binstr = db_header_binstr[
             hFormat["reservedSpaceOffset"]:
             hFormat["reservedSpaceOffset"] + hFormat["reservedSpaceLen"]]
-        freelist_trunk_head_binstr = db_header_binstr[
-            hFormat["freelistTrunkHeadOffset"]:
-            hFormat["freelistTrunkHeadOffset"] +
-            hFormat["freelistTrunkHeadLen"]]
-        n_freelist_pages_binstr = db_header_binstr[
-            hFormat["nFreelistPagesOffset"]:
-            hFormat["nFreelistPagesOffset"] + hFormat["nFreelistPagesLen"]]
-
-        # Set metadata into dbinfo
-        dbMdata = self._dbinfo["dbMetadata"]
-        dbMdata["pageSize"] = _binstr2int_bigendian(page_size_binstr)
-        dbMdata["nPages"] = len(self._dbdata) / dbMdata["pageSize"]
         dbMdata["usablePageSize"] = (
             dbMdata["pageSize"] - _binstr2int_bigendian(reserved_space_binstr))
-        dbMdata["freelistTrunkHead"] = _binstr2int_bigendian(
-            freelist_trunk_head_binstr)
-        dbMdata["nFreelistPages"] = _binstr2int_bigendian(
-            n_freelist_pages_binstr)
+
+        if not self._preallocDb:
+            freelist_trunk_head_binstr = db_header_binstr[
+                hFormat["freelistTrunkHeadOffset"]:
+                    hFormat["freelistTrunkHeadOffset"] +
+                    hFormat["freelistTrunkHeadLen"]]
+            dbMdata["freelistTrunkHead"] = _binstr2int_bigendian(
+                freelist_trunk_head_binstr)
+
+            n_freelist_pages_binstr = db_header_binstr[
+                hFormat["nFreelistPagesOffset"]:
+                    hFormat["nFreelistPagesOffset"] +
+                    hFormat["nFreelistPagesLen"]]
+            dbMdata["nFreelistPages"] = _binstr2int_bigendian(
+                n_freelist_pages_binstr)
+        else:  # Prealloc SQLite
+            freelist_map_head_binstr = db_header_binstr[
+                hFormat["freelistMapHeadOffset"]:
+                    hFormat["freelistMapHeadOffset"] +
+                    hFormat["freelistMapHeadLen"]]
+            dbMdata["freelistMapHead"] = _binstr2int_bigendian(
+                freelist_map_head_binstr)
 
     def _read_db_pages(self):
         # Read freelist pages first to prevent meaningless page analysis
@@ -98,18 +114,36 @@ class SQLiteAnalyzer(object):
         return self._dbdata[page_offset:page_offset + page_size]
 
     def _read_freelist_pages(self):
+        if not self._preallocDb:
+            self._read_freelist_pages_normal()
+        else:
+            self._read_freelist_pages_prealloc()
+
+    def _read_freelist_pages_normal(self):
+        self._read_freelist_pages_aux(
+            self._dbinfo["dbMetadata"]["freelistTrunkHead"])
+
+    def _read_freelist_pages_prealloc(self):
+        """
+        @desc  This function assumes freelist trunk page format is the same
+          as normal SQLite even with prealloc SQLite.
+        """
+        assert(self._preallocDb)
+        [self._read_freelist_pages_aux(iTrunkHead)
+         for iTrunkHead in self._get_freelist_trunks_from_map()]
+
+    def _read_freelist_pages_aux(self, iTrunkHead):
+        assert(iTrunkHead > 0)
         pages = self._dbinfo["pages"]
-        next_trunk = self._dbinfo["dbMetadata"]["freelistTrunkHead"]
-        pages[next_trunk] = {}
-        pages[next_trunk]["pageType"] = PageType.FREELIST_TRUNK
+        next_trunk = iTrunkHead
         while isinstance(next_trunk, int) and next_trunk > 0:
-            next_trunk = self._read_freelist_trunk_page_and_its_leaves(
-                next_trunk)
             pages[next_trunk] = {
                 "pageMetadata": {
                     "pageType": PageType.FREELIST_TRUNK,
                 }
             }
+            next_trunk = self._read_freelist_trunk_page_and_its_leaves(
+                next_trunk)
 
     def _read_freelist_trunk_page_and_its_leaves(self, page_num):
         page_data = self._get_page_data(page_num)
@@ -154,6 +188,54 @@ class SQLiteAnalyzer(object):
             offset += trunk_pg_format["leafPageNumLen"]
 
         return next_trunk_page
+
+    def _get_freelist_map_page_num(self):
+        assert(self._preallocDb)
+        page1 = self._get_page_data(1)
+        hFormat = DbFormatConfig.dbHeaderFormat
+        iMapPage_binstr = page1[hFormat["freelistMapHeadOffset"]:
+                                hFormat["freelistMapHeadOffset"] +
+                                hFormat["freelistMapHeadLen"]]
+        return _binstr2int_bigendian(iMapPage_binstr)
+
+    def _get_freelist_trunks_from_map(self):
+        assert(self._preallocDb)
+
+        iMapHead = self._get_freelist_map_page_num()
+        iMap = iMapHead
+        aiTrunk = []
+        while iMap > 0:
+            aMap = self._get_page_data(iMap)
+
+            # Reg to dbinfo
+            self._dbinfo["pages"][iMap] = {
+                "pageMetadata": {
+                    "pageType": PageType.FREELIST_MAP,
+                }
+            }
+
+            # Read metadata
+            iNextMap_binstr = aMap[0:4]
+            iNextMap = _binstr2int_bigendian(iNextMap_binstr)
+
+            nTrunk_binstr = aMap[4:8]
+            nTrunk = _binstr2int_bigendian(nTrunk_binstr)
+
+            # Get trunk page nums
+            for i in range(nTrunk):
+                pageSize = self._dbinfo["dbMetadata"]["pageSize"]
+                lenFreelistMapKey = 4
+                lenFreelistMapVal = 8
+                nMaxTrunk = int((pageSize - 8) / (lenFreelistMapVal + 4))
+                offset = (8 + lenFreelistMapKey * nMaxTrunk +
+                          lenFreelistMapVal * i)
+                iTrunk_binstr = aMap[offset: offset + 4]
+                iTrunk = _binstr2int_bigendian(iTrunk_binstr)
+                aiTrunk.append(iTrunk)
+
+            iMap = iNextMap
+
+        return aiTrunk
 
     def _read_page(self, pageNum):
         # Possibly page[pageNum] is already read (ex: overflow page)
@@ -555,7 +637,9 @@ class SQLiteAnalyzer(object):
     def _checkDbinfoValidity(self):
         dbMdata = self._dbinfo["dbMetadata"]
         for k, v in dbMdata.iteritems():
-            assert v is not None
+            if k not in ("freelistTrunkHead", "nFreelistPages",
+                         "freelistMapHead"):
+                assert v is not None
             pages = self._dbinfo["pages"]
             assert len(pages) >= 1
 

@@ -17,11 +17,18 @@ dbHeaderFormat = {
     "reservedSpaceOffset": 20,
     "reservedSpaceLen": 1,
 
+
+    # Normal SQLite has freelist (trunk|leaf) info in page#1
     "freelistTrunkHeadOffset": 32,
     "freelistTrunkHeadLen": 4,
 
     "nFreelistPagesOffset": 36,
     "nFreelistPagesLen": 4,
+
+
+    # Prealloc SQLite has freelist map info in page#1
+    "freelistMapHeadOffset": 32,
+    "freelistMapHeadLen": 4,
 }
 
 btreeHeaderFormat = {

@@ -15,6 +15,7 @@ class PageType:
     OVERFLOW = "overflow page"
     FREELIST_TRUNK = "freelist trunk page"
     FREELIST_LEAF = "freelist leaf page"
+    FREELIST_MAP = "freelist map page"
     UNCERTAIN = "uncertain page"
 
 
@@ -52,8 +53,11 @@ def get_dbinfo_template():
               # },
               # ...
             ],
+          # Normal SQLite
           "freelistTrunkHead": None,  # UINT
           "nFreelistPages": None,  # UINT
+          # Prealloc SQLite
+          "freelistMapHead": None,  # UINT
         },
       "pages":
         {

@@ -39,6 +39,11 @@ def create_parser_json(subparsers):
         "--jsonPath",
         default=None,
         help="Output JSON path")
+    parser_json.add_argument(
+        "--preallocDb",
+        default=False,
+        action='store_true',
+        help="Whether db is created by prealloc SQLite")
 
 def create_parser_svg(subparsers):
     parser_svg = subparsers.add_parser(
@@ -74,6 +79,11 @@ def create_parser_svg(subparsers):
         default=True,
         action='store_true',
         help="Whether to display freelist (trunk|leaf) pages")
+    parser_svg.add_argument(
+        "--preallocDb",
+        default=False,
+        action='store_true',
+        help="Whether db is created by prealloc SQLite")
 
 def create_parser_longshot_svg(subparsers):
     parser_longshot_svg = subparsers.add_parser(
@@ -101,16 +111,21 @@ information is provided."""
         default=[],
         nargs='+',
         help="List of B-tree (table or index) name to focus. Only pages in this b-tree are displayed.")
+    parser_longshot_svg.add_argument(
+        "--preallocDb",
+        default=False,
+        action='store_true',
+        help="Whether db is created by prealloc SQLite")
 
 def output_dbinfo_json(args):
-    analyzer = SQLiteAnalyzer(args.dbPath)
+    analyzer = SQLiteAnalyzer(args.dbPath, preallocDb=args.preallocDb)
     if args.jsonPath is None:
         analyzer.printJson()
     else:
         analyzer.dumpJson(outPath=args.jsonPath)
 
 def output_dbinfo_svg(args):
-    analyzer = SQLiteAnalyzer(args.dbPath)
+    analyzer = SQLiteAnalyzer(args.dbPath, preallocDb=args.preallocDb)
     json2Svg = Json2Svg()
     if args.jsonPath is None:
         jsonStr = analyzer.getJson()
@@ -127,7 +142,7 @@ def output_dbinfo_svg(args):
     json2Svg.dumpSvg()
 
 def output_dbinfo_longshot_svg(args):
-    analyzer = SQLiteAnalyzer(args.dbPath)
+    analyzer = SQLiteAnalyzer(args.dbPath, preallocDb=args.preallocDb)
     json2Svg = Json2Svg()
     if args.jsonPath is None:
         jsonStr = analyzer.getJson()
