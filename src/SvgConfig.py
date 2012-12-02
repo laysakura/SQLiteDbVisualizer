@@ -17,6 +17,7 @@ page = {
     PageType.OVERFLOW + "strokeColor": "#33ff33",
     PageType.FREELIST_TRUNK + "strokeColor": "#0aa000",
     PageType.FREELIST_LEAF + "strokeColor": "#3ff333",
+    PageType.FREELIST_MAP + "strokeColor": "#ffff33",
     PageType.UNCERTAIN + "strokeColor": "#666666",
 }
 

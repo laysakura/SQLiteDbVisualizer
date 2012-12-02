@@ -140,7 +140,8 @@ class Json2Svg(object):
         return (
             self._displayFreelistPages == True and
             pageMetadata["pageType"] in (
-                PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF)
+                PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF,
+                PageType.FREELIST_MAP)
         )
 
     def _drawPageList(self, x, y):
