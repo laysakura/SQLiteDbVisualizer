@@ -120,8 +120,9 @@ class SQLiteAnalyzer(object):
             self._read_freelist_pages_prealloc()
 
     def _read_freelist_pages_normal(self):
-        self._read_freelist_pages_aux(
-            self._dbinfo["dbMetadata"]["freelistTrunkHead"])
+        iTrunkHead = self._dbinfo["dbMetadata"]["freelistTrunkHead"]
+        if iTrunkHead > 0:
+            self._read_freelist_pages_aux(iTrunkHead)
 
     def _read_freelist_pages_prealloc(self):
         """
