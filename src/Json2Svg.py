@@ -177,11 +177,11 @@ class Json2Svg(object):
                 pageMetadata = page["pageMetadata"]
                 if pageMetadata["pageType"] in (
                     PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF):
-                    fillColor = self._btreeColorDict[
-                        DbInfoTemplate.pgnoRoot2btreeName(
-                            self._dbinfo,
-                            pageMetadata["pgnoRoot"])
-                    ]
+                    btreeName = DbInfoTemplate.pgnoRoot2btreeName(
+                        self._dbinfo,
+                        pageMetadata["pgnoRoot"])
+                    if btreeName is not None:
+                        fillColor = self._btreeColorDict[btreeName]
 
             # offset
             pageSize = SvgConfig.pageLongshot["size"]
