@@ -151,6 +151,15 @@ def get_dbinfo_template():
     }
 
 
+def pgnoRoot2btreeName(dbinfo, pgnoRoot):
+    assert(str(pgnoRoot) in dbinfo["pages"])
+    pageMetadata = dbinfo["pages"][str(pgnoRoot)]["pageMetadata"]
+    assert(pageMetadata["pageType"] in (
+            PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
+            PageType.TABLE_LEAF, PageType.TABLE_INTERIOR))
+    return pageMetadata["livingBtree"]
+
+
 def _test():
     import doctest
     doctest.testmod()

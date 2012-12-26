@@ -1,5 +1,6 @@
 import SvgConfig
 import DbFormatConfig
+import DbInfoTemplate
 from DbInfoTemplate import PageType
 import json
 import pysvg.structure
@@ -171,6 +172,16 @@ class Json2Svg(object):
             fillColor = SvgConfig.pageLongshot["defaultColor"]
             if self._isFilteredBtreePage(pageNum):
                 fillColor = self._btreeColorDict[pageMetadata["livingBtree"]]
+            elif self._isFreelistPageToDisplay(pageNum):
+                page = self._dbinfo["pages"][str(pageNum)]
+                pageMetadata = page["pageMetadata"]
+                if pageMetadata["pageType"] in (
+                    PageType.FREELIST_TRUNK, PageType.FREELIST_LEAF):
+                    fillColor = self._btreeColorDict[
+                        DbInfoTemplate.pgnoRoot2btreeName(
+                            self._dbinfo,
+                            pageMetadata["pgnoRoot"])
+                    ]
 
             # offset
             pageSize = SvgConfig.pageLongshot["size"]
