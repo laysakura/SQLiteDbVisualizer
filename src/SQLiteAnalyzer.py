@@ -130,24 +130,21 @@ class SQLiteAnalyzer(object):
           as normal SQLite even with prealloc SQLite.
         """
         assert(self._preallocDb)
-        [self._read_freelist_pages_aux(iTrunkHead)
-         for iTrunkHead in self._get_freelist_trunk_heads_from_map()]
+        [self._read_freelist_pages_aux(iTrunkHead, iRootPg)
+         for (iRootPg, iTrunkHead) in
+         self._get_freelist_trunk_heads_from_map()]
 
-    def _read_freelist_pages_aux(self, iTrunkHead):
+    def _read_freelist_pages_aux(self, iTrunkHead, iRootPg):
         assert(iTrunkHead > 0)
         pages = self._dbinfo["pages"]
         next_trunk = iTrunkHead
         while isinstance(next_trunk, int) and next_trunk > 0:
-            pages[next_trunk] = {
-                "pageMetadata": {
-                    "pageType": PageType.FREELIST_TRUNK,
-                }
-            }
+            pages[next_trunk] = {"pageMetadata": {}}
             next_trunk = self._read_freelist_trunk_page_and_its_leaves(
-                next_trunk)
+                next_trunk, iRootPg)
 
-    def _read_freelist_trunk_page_and_its_leaves(self, page_num):
-        page_data = self._get_page_data(page_num)
+    def _read_freelist_trunk_page_and_its_leaves(self, iTrunk, iRootPg):
+        page_data = self._get_page_data(iTrunk)
         trunk_pg_format = DbFormatConfig.freelistTrunkPageFormat
 
         # Find next freelist trunk page number
@@ -165,16 +162,17 @@ class SQLiteAnalyzer(object):
         n_leaves = _binstr2int_bigendian(n_leaves_binstr)
 
         # Set pageMetadata
-        self._dbinfo["pages"][page_num]["pageMetadata"] = {
+        self._dbinfo["pages"][iTrunk]["pageMetadata"] = {
             "pageType": PageType.FREELIST_TRUNK,
+            "pgnoRoot": iRootPg,
             "nextFreelistTrunkPageNum": next_trunk_page,
             "nFreelistLeaves": n_leaves,
         }
 
         # Find all freelist leaf pages which belongs to this trunk
-        self._dbinfo["pages"][page_num]["freelistLeafPageNums"] = []
-        leaves = self._dbinfo["pages"][page_num]["freelistLeafPageNums"] = []
-        leaves = self._dbinfo["pages"][page_num]["freelistLeafPageNums"]
+        self._dbinfo["pages"][iTrunk]["freelistLeafPageNums"] = []
+        leaves = self._dbinfo["pages"][iTrunk]["freelistLeafPageNums"] = []
+        leaves = self._dbinfo["pages"][iTrunk]["freelistLeafPageNums"]
         offset = trunk_pg_format["firstLeafPageNumOffset"]
         for i in range(n_leaves):
             leaf_num_binstr = page_data[
@@ -184,6 +182,7 @@ class SQLiteAnalyzer(object):
             self._dbinfo["pages"][leaf_num] = {
                 "pageMetadata": {
                     "pageType": PageType.FREELIST_LEAF,
+                    "pgnoRoot": iRootPg,
                 }
             }
             offset += trunk_pg_format["leafPageNumLen"]
@@ -200,11 +199,15 @@ class SQLiteAnalyzer(object):
         return _binstr2int_bigendian(iMapPage_binstr)
 
     def _get_freelist_trunk_heads_from_map(self):
+        """
+        @return  (iRootPg, iTrunkHead) where iTrunkHead is
+          freelist trunk head page of btree#iRootPg
+        """
         assert(self._preallocDb)
 
         iMapHead = self._get_freelist_map_page_num()
         iMap = iMapHead
-        aiTrunkHeads = []
+        ret = []  # [(iRootPg, iTrunkHead), ...]
         while iMap > 0:
             aMap = self._get_page_data(iMap)
 
@@ -225,19 +228,30 @@ class SQLiteAnalyzer(object):
             # Get trunk page nums
             for i in range(nBtree):
                 pageSize = self._dbinfo["dbMetadata"]["pageSize"]
+                lenPgno = 4
                 lenFreelistMapKey = 4
                 lenFreelistMapVal = 8
                 nMaxTrunk = int((pageSize - 8) / (lenFreelistMapVal + 4))
-                offset = (8 + lenFreelistMapKey * nMaxTrunk +
-                          lenFreelistMapVal * i)
-                iTrunkHead_binstr = aMap[offset: offset + 4]
+
+                # root page num
+                iRootPgOffset = (8 + lenPgno * i)
+                iRootPg_binstr = aMap[iRootPgOffset:
+                                      iRootPgOffset + 4]
+                iRootPg = _binstr2int_bigendian(iRootPg_binstr)
+
+                # trunk head
+                iTrunkHeadOffset = (8 + lenFreelistMapKey * nMaxTrunk +
+                                    lenFreelistMapVal * i)
+                iTrunkHead_binstr = aMap[iTrunkHeadOffset:
+                                         iTrunkHeadOffset + 4]
                 iTrunkHead = _binstr2int_bigendian(iTrunkHead_binstr)
+
                 if iTrunkHead > 0:
-                    aiTrunkHeads.append(iTrunkHead)
+                    ret.append((iRootPg, iTrunkHead))
 
             iMap = iNextMap
 
-        return aiTrunkHeads
+        return ret
 
     def _read_page(self, pageNum):
         # Possibly page[pageNum] is already read (ex: overflow page)
