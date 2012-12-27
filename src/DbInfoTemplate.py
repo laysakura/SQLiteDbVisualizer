@@ -152,7 +152,8 @@ def get_dbinfo_template():
 
 
 def pgnoRoot2btreeName(dbinfo, pgnoRoot):
-    assert(str(pgnoRoot) in dbinfo["pages"])
+    if str(pgnoRoot) not in dbinfo["pages"]:
+        return None
     pageMetadata = dbinfo["pages"][str(pgnoRoot)]["pageMetadata"]
     if pageMetadata["pageType"] in (
         PageType.INDEX_LEAF, PageType.INDEX_INTERIOR,
