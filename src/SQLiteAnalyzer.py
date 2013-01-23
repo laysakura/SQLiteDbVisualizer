@@ -228,19 +228,21 @@ class SQLiteAnalyzer(object):
             # Get trunk page nums
             for i in range(nBtree):
                 pageSize = self._dbinfo["dbMetadata"]["pageSize"]
-                lenPgno = 4
+                lenFreelistMapHead = 8
                 lenFreelistMapKey = 4
-                lenFreelistMapVal = 8
-                nMaxTrunk = int((pageSize - 8) / (lenFreelistMapVal + 4))
+                lenFreelistMapVal = 12
+                nMaxTrunk = int((pageSize - lenFreelistMapHead) /
+                                (lenFreelistMapVal + lenFreelistMapKey))
 
                 # root page num
-                iRootPgOffset = (8 + lenPgno * i)
+                iRootPgOffset = (lenFreelistMapHead + lenFreelistMapKey * i)
                 iRootPg_binstr = aMap[iRootPgOffset:
-                                      iRootPgOffset + 4]
+                                      iRootPgOffset + lenFreelistMapKey]
                 iRootPg = _binstr2int_bigendian(iRootPg_binstr)
 
                 # trunk head
-                iTrunkHeadOffset = (8 + lenFreelistMapKey * nMaxTrunk +
+                iTrunkHeadOffset = (lenFreelistMapHead +
+                                    lenFreelistMapKey * nMaxTrunk +
                                     lenFreelistMapVal * i)
                 iTrunkHead_binstr = aMap[iTrunkHeadOffset:
                                          iTrunkHeadOffset + 4]
