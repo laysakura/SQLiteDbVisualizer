@@ -80,7 +80,7 @@ class Json2Svg(object):
             encoding=SvgConfig.main["encoding"])
 
     def _prepPysvgObj(self):
-        self._svgDoc = pysvg.structure.svg()
+        self._svgDoc = pysvg.structure.Svg()
         self._shapeBuilder = pysvg.builders.ShapeBuilder()
 
     def _setDrawParam(self):
@@ -219,7 +219,7 @@ class Json2Svg(object):
         style = pysvg.builders.StyleBuilder()
         style.setFontSize(SvgConfig.btreeList["legendFontSize"])
         self._svgDoc.addElement(
-            pysvg.text.text(btree["name"].encode(SvgConfig.main["encoding"]),
+            pysvg.text.Text(btree["name"].encode(SvgConfig.main["encoding"]),
                             x=x + SvgConfig.btreeList["legendHeight"],
                             y=y + SvgConfig.btreeList["legendTopMargin"],
                             style=style.getStyle()))
@@ -249,7 +249,7 @@ class Json2Svg(object):
         style = pysvg.builders.StyleBuilder()
         style.setFontSize(SvgConfig.pageList["pageNumFontSize"])
         self._svgDoc.addElement(
-            pysvg.text.text(str(pageNum),
+            pysvg.text.Text(str(pageNum),
                             x=x + SvgConfig.pageList["pageNumLeftMargin"],
                             y=y + SvgConfig.pageList["pageNumTopMargin"],
                             style=style.getStyle()))
@@ -299,7 +299,7 @@ class Json2Svg(object):
         style.setFontSize(SvgConfig.cell["ridFontSize"])
         s = str(rid)
         self._svgDoc.addElement(
-            pysvg.text.text(
+            pysvg.text.Text(
                 s,
                 x=x + (self._cellHeight / 2),
                 y=y + (self._cellHeight / 2),
